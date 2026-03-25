@@ -1,0 +1,14 @@
+name = "macrocoder-worker"
+main = "worker/index.ts"
+compatibility_date = "2024-01-01"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.kv_namespaces]]
+binding = "MACROCODER_KV"
+id = "your-kv-namespace-id"
+
+# Secrets (set via wrangler secret put)
+# - ANTHROPIC_API_KEY
+# - GITHUB_CLIENT_SECRET

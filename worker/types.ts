@@ -151,3 +151,188 @@ export interface LeadSummary {
   recommended_approach: string
   key_findings: string[]
 }
+
+export interface GitRecoverRequest {
+  url: string
+  name?: string
+  basePath?: string
+}
+
+export interface GitRecoverResponse {
+  localPath: string
+  repoUrl: string
+  repoName: string
+  commitCount: number
+  branchCount: number
+  historySizeBytes: number
+  recoveredAt: string
+}
+
+export interface GitVerifyRequest {
+  path: string
+}
+
+export interface GitVerifyResponse {
+  isValid: boolean
+  commitCount: number
+  branchCount: number
+  hasRemotes: boolean
+  headBranch?: string
+  historySizeBytes: number
+  issues: string[]
+}
+
+export interface ProjectRegisterRequest {
+  projectId: string
+  token: string
+}
+
+export interface GitHubTokenRequest {
+  code: string
+  redirectUri?: string
+}
+
+export interface ProRegisterRequest {
+  email: string
+  freelancerName: string
+}
+
+export interface ProUpgradeRequest {
+  tenantId: string
+  plan: 'free' | 'pro' | 'team'
+}
+
+export interface ProTrackRequest {
+  event: 'link_created' | 'audit_generated'
+}
+
+export interface ProBenchmarkIngestRequest {
+  stack?: string
+  actualHours?: number
+  rate?: number
+}
+
+export interface GitHubSnapshotRequest {
+  projectId: string
+  token: string
+  owner: string
+  repo: string
+  githubToken: string
+}
+
+export interface UpworkAnalyzeRequest {
+  token: string
+  jobUrl: string
+}
+
+export interface UpworkHuntRequest {
+  stacks?: string[]
+  budgetMin?: number
+  clientsVerified?: boolean
+}
+
+export interface IntelligenceRequest {
+  token: string
+  githubToken?: string
+  upworkJobUrl?: string
+}
+
+export interface DeliveryPlanRequest {
+  token: string
+  mode?: 'auto' | 'assist'
+}
+
+export interface DeliveryTaskRequest {
+  token: string
+  taskId: string
+  status?: string
+}
+
+export interface ContractGenerateRequest {
+  token: string
+  rate?: number
+}
+
+export interface ScopeAnalyzeRequest {
+  token: string
+  message: string
+  rate?: number
+}
+
+export interface OracleQueryRequest {
+  stack?: string
+  geo?: string
+  question?: string
+  budget?: string
+}
+
+export interface OracleMarketIngestRequest {
+  source?: string
+  stack?: string
+  geo?: string
+  rate?: number
+  hours?: number
+  submittedAt?: string
+}
+
+export interface DeliveryProofRequest {
+  token: string
+}
+
+export interface DeliveryPublishRequest {
+  token: string
+}
+
+export interface PortfolioCaseRequest {
+  token: string
+}
+
+export interface RetainerCreateRequest {
+  token: string
+  monthlyUsd?: number
+  hours?: number
+}
+
+export interface RetainerRunRequest {
+  token: string
+  week?: number
+  vulnerabilities?: number
+  performanceDeltaPct?: number
+}
+
+export interface AgentsOptimizeRequest {
+  token: string
+  stack?: string
+  task?: string
+}
+
+export interface ConversationRequest {
+  projectId: string
+  token: string
+}
+
+export interface ConversationSaveRequest {
+  projectId: string
+  token: string
+  [key: string]: unknown
+}
+
+export interface ConversationFinalizeRequest {
+  token: string
+  clientName?: string
+}
+
+export interface ChatRequest {
+  projectId: string
+  token: string
+  messages: ChatMessage[]
+}
+
+export interface AuditCreateRequest {
+  projectId: string
+  token: string
+}
+
+export interface AbandonedCheckRequest {
+  token: string
+}

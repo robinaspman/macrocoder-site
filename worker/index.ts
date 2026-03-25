@@ -10,7 +10,6 @@ import {
 import { runDeepAnalysis, synthesizeAuditReport, synthesizeLeadSummary } from './analysis'
 import {
   buildSystemPrompt,
-  callClaude,
   callClaudeParse,
   evolveConversationState,
   getConversationState,
@@ -21,34 +20,95 @@ import { getLead, listLeads } from './inbox'
 import { estimateEffortFromBenchmark, getPricingBenchmark, ingestGlobalBenchmark } from './pricing'
 import { runHarborScan } from './harbor'
 import { buildDeliveryPlan, markTaskProgress } from './delivery'
+import type { DeliveryPlan } from './delivery'
 import { gatherClientIntelligence } from './intelligence'
 import { choosePromptVariant, composePromptByVariant } from './prompts'
+import type { PromptVariant } from './prompts'
 import { emitWebhook } from './webhooks'
 import { analyzeUpworkJob } from './upwork'
 import { runGhostHunt } from './hunt'
 import { buildContractPackage, buildContractSendDraft, renderContractPackage } from './contract'
+import type { ContractPackage, ContractDeliveryPlan } from './contract'
 import { analyzeScopeCreep, summarizeScopeEvents } from './scope'
+import type { ScopeEvent } from './scope'
 import { queryPricingOracle, scoreClientLtv } from './oracle'
 import { aggregateMarketSignals, normalizeMarketSignal } from './oracle_market'
+import type { MarketSignal } from './oracle_market'
 import { rankPipeline } from './pipeline_rank'
+import type { PipelineLead } from './pipeline_rank'
 import { businessOpsHealth } from './ops_health'
 import { buildDeliveryProof, buildDeliveryPublication } from './proof'
+import type { DeliveryProof, ProofRetainerRun } from './proof'
 import { buildPortfolioCase } from './portfolio'
 import { benchmarkAgents, optimizeAgentPlan } from './agents_market'
 import { buildRetainerPlan, buildRetainerReport, buildRetainerRun } from './retainer'
+import type { RetainerPlan } from './retainer'
 import type {
   ChatMessage,
   DeepAnalysis,
   Env,
   HarborSignals,
   RepoSnapshot,
-  TenantAccount
+  TenantAccount,
+  ProjectRegisterRequest,
+  GitHubTokenRequest,
+  ProRegisterRequest,
+  ProUpgradeRequest,
+  ProTrackRequest,
+  ProBenchmarkIngestRequest,
+  GitHubSnapshotRequest,
+  UpworkAnalyzeRequest,
+  UpworkHuntRequest,
+  IntelligenceRequest,
+  DeliveryPlanRequest,
+  DeliveryTaskRequest,
+  ContractGenerateRequest,
+  ScopeAnalyzeRequest,
+  OracleQueryRequest,
+  OracleMarketIngestRequest,
+  DeliveryProofRequest,
+  DeliveryPublishRequest,
+  PortfolioCaseRequest,
+  RetainerCreateRequest,
+  RetainerRunRequest,
+  AgentsOptimizeRequest,
+  ConversationRequest,
+  ConversationSaveRequest,
+  ConversationFinalizeRequest,
+  ChatRequest,
+  AuditCreateRequest,
+  AbandonedCheckRequest
 } from './types'
 
 const jsonHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+}
+
+type JsonRecord = Record<string, unknown>
+
+interface StructuredSummary {
+  client_name?: string
+  budget_stated?: string
+  scope_summary?: string
+  [key: string]: unknown
+}
+
+interface StoredConversation {
+  projectId?: string
+  timestamp?: string
+  conversation?: ChatMessage[]
+  structuredSummary?: StructuredSummary
+  clientName?: string
+}
+
+interface AuditRecord {
+  auditId: string
+  projectId: string
+  status: 'pending_payment' | 'paid'
+  createdAt: string
+  paidAt?: string
 }
 
 class HttpError extends Error {
@@ -67,27 +127,31 @@ export default {
     try {
       if (url.pathname === '/projects/register' && request.method === 'POST') {
         const body = await readJson(request)
-        if (!body.projectId || !body.token) throw new HttpError(400, 'Missing projectId/token')
-        await registerProjectToken(body.projectId, body.token, env)
+        const projectId = str(body, 'projectId')
+        const token = str(body, 'token')
+        if (!projectId || !token) throw new HttpError(400, 'Missing projectId/token')
+        await registerProjectToken(projectId, token, env)
         return ok({ success: true })
       }
 
       if (url.pathname === '/github/token' && request.method === 'POST') {
-        return ok(await exchangeGitHubToken(await readJson(request), env))
+        const body = as<GitHubTokenRequest>(await readJson(request))
+        return ok(await exchangeGitHubToken(body, env))
       }
 
       if (url.pathname === '/pro/register' && request.method === 'POST') {
         const body = await readJson(request)
-        if (!body.email || !body.freelancerName)
-          throw new HttpError(400, 'Missing email/freelancerName')
+        const email = str(body, 'email')
+        const freelancerName = str(body, 'freelancerName')
+        if (!email || !freelancerName) throw new HttpError(400, 'Missing email/freelancerName')
 
         const tenantId = crypto.randomUUID()
         const apiKey = `mc_${crypto.randomUUID().replace(/-/g, '')}`
         const now = new Date().toISOString()
         const account: TenantAccount = {
           tenantId,
-          email: body.email,
-          freelancerName: body.freelancerName,
+          email,
+          freelancerName,
           plan: 'free',
           apiKey,
           createdAt: now,
@@ -144,31 +208,39 @@ export default {
         const tenant = await requireTenantApiKey(request, env)
         const body = await readJson(request)
         const benchmark = await ingestGlobalBenchmark(env, {
-          stack: body.stack || 'default',
-          actualHours: Number(body.actualHours || 0),
-          rate: Number(body.rate || 0)
+          stack: str(body, 'stack') || 'default',
+          actualHours: num(body, 'actualHours'),
+          rate: num(body, 'rate')
         })
         return ok({ ok: true, tenantId: tenant.tenantId, benchmark })
       }
 
       if (url.pathname === '/github/snapshot' && request.method === 'POST') {
         const body = await readJson(request)
-        await requireProjectAuth(body.projectId, body.token, env)
-        const snapshot = await buildRepoSnapshot(body.owner, body.repo, body.githubToken)
-        await env.MACROCODER_KV.put(`snapshot:${body.projectId}`, JSON.stringify(snapshot))
+        const projectId = str(body, 'projectId')
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
+        const snapshot = await buildRepoSnapshot(
+          str(body, 'owner'),
+          str(body, 'repo'),
+          str(body, 'githubToken')
+        )
+        await env.MACROCODER_KV.put(`snapshot:${projectId}`, JSON.stringify(snapshot))
 
-        ctx.waitUntil(runBackgroundDeepAnalysis(body.projectId, snapshot, env))
+        ctx.waitUntil(runBackgroundDeepAnalysis(projectId, snapshot, env))
         return ok({ snapshot })
       }
 
       if (url.pathname.startsWith('/upwork/analyze/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/upwork/analyze/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
-        if (!body.jobUrl) throw new HttpError(400, 'Missing jobUrl')
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
+        const jobUrl = str(body, 'jobUrl')
+        if (!jobUrl) throw new HttpError(400, 'Missing jobUrl')
 
         const snapshot = await getSnapshot(projectId, env)
-        const upworkIntelligence = await analyzeUpworkJob(body.jobUrl)
+        const upworkIntelligence = await analyzeUpworkJob(jobUrl)
         const updated: RepoSnapshot = { ...snapshot, upworkIntelligence }
 
         await env.MACROCODER_KV.put(`snapshot:${projectId}`, JSON.stringify(updated))
@@ -178,9 +250,9 @@ export default {
       if (url.pathname === '/upwork/hunt' && request.method === 'POST') {
         const body = await readJson(request)
         const hunt = runGhostHunt({
-          stacks: Array.isArray(body.stacks) ? body.stacks : [],
-          budgetMin: Number(body.budgetMin || 1000),
-          clientsVerified: Boolean(body.clientsVerified)
+          stacks: arr(body, 'stacks') as string[],
+          budgetMin: num(body, 'budgetMin', 1000),
+          clientsVerified: bool(body, 'clientsVerified')
         })
         return ok(hunt)
       }
@@ -188,14 +260,19 @@ export default {
       if (url.pathname.startsWith('/intelligence/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/intelligence/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const snapshot = await getSnapshot(projectId, env)
-        const intelligence = await gatherClientIntelligence(snapshot, body.githubToken)
+        const intelligence = await gatherClientIntelligence(
+          snapshot,
+          str(body, 'githubToken') || undefined
+        )
         const withIntel: RepoSnapshot = { ...snapshot, clientIntelligence: intelligence }
 
-        if (body.upworkJobUrl) {
-          withIntel.upworkIntelligence = await analyzeUpworkJob(body.upworkJobUrl)
+        const upworkJobUrl = str(body, 'upworkJobUrl')
+        if (upworkJobUrl) {
+          withIntel.upworkIntelligence = await analyzeUpworkJob(upworkJobUrl)
         }
 
         await env.MACROCODER_KV.put(`snapshot:${projectId}`, JSON.stringify(withIntel))
@@ -210,16 +287,17 @@ export default {
       if (url.pathname.startsWith('/delivery/plan/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/delivery/plan/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const snapshot = await getSnapshot(projectId, env)
         const summary = conversation?.structuredSummary || null
 
-        const mode = (body.mode === 'auto' ? 'auto' : 'assist') as 'assist' | 'auto'
+        const mode = str(body, 'mode') === 'auto' ? 'auto' : 'assist'
         const plan = buildDeliveryPlan(projectId, summary, snapshot, mode)
 
         await env.MACROCODER_KV.put(`delivery-plan:${projectId}`, JSON.stringify(plan))
@@ -238,12 +316,16 @@ export default {
       if (url.pathname.startsWith('/delivery/task/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/delivery/task/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
-        const plan = (await env.MACROCODER_KV.get(`delivery-plan:${projectId}`, 'json')) as any
+        const plan = (await env.MACROCODER_KV.get(
+          `delivery-plan:${projectId}`,
+          'json'
+        )) as DeliveryPlan | null
         if (!plan) throw new HttpError(404, 'Delivery plan not found')
 
-        const next = markTaskProgress(plan, body.taskId, body.status || 'running')
+        const next = markTaskProgress(plan, str(body, 'taskId'), str(body, 'status') || 'running')
         await env.MACROCODER_KV.put(`delivery-plan:${projectId}`, JSON.stringify(next))
         return ok({ plan: next })
       }
@@ -251,20 +333,21 @@ export default {
       if (url.pathname.startsWith('/contract/generate/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/contract/generate/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const summary = conversation?.structuredSummary || null
         const deliveryPlan = (await env.MACROCODER_KV.get(
           `delivery-plan:${projectId}`,
           'json'
-        )) as any
+        )) as ContractDeliveryPlan | null
         const contract = buildContractPackage(
           projectId,
-          Number(body.rate || 85),
+          num(body, 'rate', 85),
           summary,
           deliveryPlan
         )
@@ -277,7 +360,10 @@ export default {
         const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim()
         await requireProjectAuth(projectId, token, env)
 
-        const contract = (await env.MACROCODER_KV.get(`contract:${projectId}`, 'json')) as any
+        const contract = (await env.MACROCODER_KV.get(
+          `contract:${projectId}`,
+          'json'
+        )) as ContractPackage | null
         if (!contract) throw new HttpError(404, 'Contract not found')
         return ok(renderContractPackage(contract))
       }
@@ -287,7 +373,10 @@ export default {
         const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim()
         await requireProjectAuth(projectId, token, env)
 
-        const contract = (await env.MACROCODER_KV.get(`contract:${projectId}`, 'json')) as any
+        const contract = (await env.MACROCODER_KV.get(
+          `contract:${projectId}`,
+          'json'
+        )) as ContractPackage | null
         if (!contract) throw new HttpError(404, 'Contract not found')
         const rendered = renderContractPackage(contract)
         return ok(buildContractSendDraft(rendered))
@@ -296,21 +385,20 @@ export default {
       if (url.pathname.startsWith('/scope/analyze/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/scope/analyze/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
-        if (!body.message) throw new HttpError(400, 'Missing message')
+        const token = str(body, 'token')
+        const message = str(body, 'message')
+        await requireProjectAuth(projectId, token, env)
+        if (!message) throw new HttpError(400, 'Missing message')
 
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const summary = conversation?.structuredSummary || null
-        const result = analyzeScopeCreep(String(body.message), summary, Number(body.rate || 85))
+        const result = analyzeScopeCreep(message, summary, num(body, 'rate', 85))
         const key = `scope-events:${projectId}`
-        const events = ((await env.MACROCODER_KV.get(key, 'json')) as any[]) || []
-        const nextEvents = [
-          ...events,
-          { at: new Date().toISOString(), message: body.message, result }
-        ]
+        const events = ((await env.MACROCODER_KV.get(key, 'json')) as ScopeEvent[]) || []
+        const nextEvents = [...events, { at: new Date().toISOString(), message, result }]
         await env.MACROCODER_KV.put(key, JSON.stringify(nextEvents.slice(-50)))
         return ok({ projectId, ...result })
       }
@@ -321,24 +409,24 @@ export default {
         await requireProjectAuth(projectId, token, env)
 
         const events =
-          ((await env.MACROCODER_KV.get(`scope-events:${projectId}`, 'json')) as any[]) || []
+          ((await env.MACROCODER_KV.get(`scope-events:${projectId}`, 'json')) as ScopeEvent[]) || []
         return ok({ projectId, summary: summarizeScopeEvents(events), events })
       }
 
       if (url.pathname === '/oracle/query' && request.method === 'POST') {
         const body = await readJson(request)
-        const stack = String(body.stack || 'default')
-        const geo = body.geo ? String(body.geo) : undefined
+        const stack = str(body, 'stack') || 'default'
+        const geo = str(body, 'geo') || undefined
         const benchmark = await getPricingBenchmark(env, stack.split(/[,+]/))
         const marketSignals =
-          ((await env.MACROCODER_KV.get('oracle-market-signals', 'json')) as any[]) || []
-        const marketBlend = aggregateMarketSignals(marketSignals as any, stack, geo)
+          ((await env.MACROCODER_KV.get('oracle-market-signals', 'json')) as MarketSignal[]) || []
+        const marketBlend = aggregateMarketSignals(marketSignals, stack, geo)
         const answer = queryPricingOracle(
           {
-            question: String(body.question || 'What should I charge?'),
+            question: str(body, 'question') || 'What should I charge?',
             stack,
             geo,
-            budget: body.budget ? String(body.budget) : undefined,
+            budget: str(body, 'budget') || undefined,
             marketBlend
           },
           benchmark
@@ -350,8 +438,8 @@ export default {
         if (!isAdminAuthorized(request, env)) throw new HttpError(401, 'Unauthorized')
         const body = await readJson(request)
         const key = 'oracle-market-signals'
-        const existing = ((await env.MACROCODER_KV.get(key, 'json')) as any[]) || []
-        const signal = normalizeMarketSignal(body)
+        const existing = ((await env.MACROCODER_KV.get(key, 'json')) as MarketSignal[]) || []
+        const signal = normalizeMarketSignal(as<OracleMarketIngestRequest>(body))
         const next = [...existing, signal].slice(-500)
         await env.MACROCODER_KV.put(key, JSON.stringify(next))
         return ok({ signal, count: next.length })
@@ -366,24 +454,25 @@ export default {
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         return ok({ projectId, ...scoreClientLtv(snapshot, conversation) })
       }
 
       if (url.pathname.startsWith('/delivery/proof/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/delivery/proof/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const snapshot = await getSnapshot(projectId, env)
         const deliveryPlan = (await env.MACROCODER_KV.get(
           `delivery-plan:${projectId}`,
           'json'
-        )) as any
+        )) as DeliveryPlan | null
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const proof = buildDeliveryProof(projectId, snapshot, deliveryPlan, conversation)
         await env.MACROCODER_KV.put(`delivery-proof:${projectId}`, JSON.stringify(proof))
         return ok({ proof })
@@ -392,16 +481,26 @@ export default {
       if (url.pathname.startsWith('/delivery/publish/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/delivery/publish/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
-        const proof = (await env.MACROCODER_KV.get(`delivery-proof:${projectId}`, 'json')) as any
+        const proof = (await env.MACROCODER_KV.get(
+          `delivery-proof:${projectId}`,
+          'json'
+        )) as DeliveryProof | null
         if (!proof) throw new HttpError(404, 'Delivery proof not found')
-        const contract = (await env.MACROCODER_KV.get(`contract:${projectId}`, 'json')) as any
-        const contractRender = contract ? renderContractPackage(contract) : null
+        const contract = (await env.MACROCODER_KV.get(
+          `contract:${projectId}`,
+          'json'
+        )) as ContractPackage | null
+        const contractRender = contract ? renderContractPackage(contract) : undefined
         const scopeSummary =
-          ((await env.MACROCODER_KV.get(`scope-events:${projectId}`, 'json')) as any[]) || []
+          ((await env.MACROCODER_KV.get(`scope-events:${projectId}`, 'json')) as ScopeEvent[]) || []
         const retainerRuns =
-          ((await env.MACROCODER_KV.get(`retainer-runs:${projectId}`, 'json')) as any[]) || []
+          ((await env.MACROCODER_KV.get(
+            `retainer-runs:${projectId}`,
+            'json'
+          )) as ProofRetainerRun[]) || []
         const publication = buildDeliveryPublication({
           projectId,
           proof,
@@ -419,15 +518,19 @@ export default {
       if (url.pathname.startsWith('/portfolio/case/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/portfolio/case/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const snapshot = await getSnapshot(projectId, env)
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const summary = conversation?.structuredSummary || null
-        const proof = (await env.MACROCODER_KV.get(`delivery-proof:${projectId}`, 'json')) as any
+        const proof = (await env.MACROCODER_KV.get(
+          `delivery-proof:${projectId}`,
+          'json'
+        )) as DeliveryProof | null
         const caseStudy = buildPortfolioCase(projectId, snapshot, summary, proof)
 
         const key = `portfolio-case:${projectId}`
@@ -438,9 +541,12 @@ export default {
       if (url.pathname === '/portfolio/list' && request.method === 'GET') {
         const limit = clampNumber(url.searchParams.get('limit'), 1, 100, 25)
         const list = await env.MACROCODER_KV.list({ prefix: 'portfolio-case:' })
-        const cases: any[] = []
+        const cases: Array<Record<string, unknown>> = []
         for (const item of list.keys) {
-          const row = (await env.MACROCODER_KV.get(item.name, 'json')) as any
+          const row = (await env.MACROCODER_KV.get(item.name, 'json')) as Record<
+            string,
+            unknown
+          > | null
           if (row) cases.push(row)
         }
         cases.sort((a, b) => String(b.generatedAt || '').localeCompare(String(a.generatedAt || '')))
@@ -450,10 +556,11 @@ export default {
       if (url.pathname.startsWith('/retainer/create/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/retainer/create/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
-        const monthlyUsd = Math.max(500, Number(body.monthlyUsd || 2000))
-        const hours = Math.max(5, Number(body.hours || 25))
+        const monthlyUsd = Math.max(500, num(body, 'monthlyUsd', 2000))
+        const hours = Math.max(5, num(body, 'hours', 25))
         const plan = buildRetainerPlan(projectId, monthlyUsd, hours)
         await env.MACROCODER_KV.put(`retainer:${projectId}`, JSON.stringify(plan))
         return ok({ plan })
@@ -464,7 +571,10 @@ export default {
         const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim()
         await requireProjectAuth(projectId, token, env)
 
-        const plan = (await env.MACROCODER_KV.get(`retainer:${projectId}`, 'json')) as any
+        const plan = (await env.MACROCODER_KV.get(
+          `retainer:${projectId}`,
+          'json'
+        )) as RetainerPlan | null
         if (!plan) throw new HttpError(404, 'Retainer plan not found')
 
         const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7)
@@ -475,18 +585,22 @@ export default {
       if (url.pathname.startsWith('/retainer/run/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/retainer/run/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
-        const plan = (await env.MACROCODER_KV.get(`retainer:${projectId}`, 'json')) as any
+        const plan = (await env.MACROCODER_KV.get(
+          `retainer:${projectId}`,
+          'json'
+        )) as RetainerPlan | null
         if (!plan) throw new HttpError(404, 'Retainer plan not found')
 
         const run = buildRetainerRun(plan, {
-          week: Number(body.week || 1),
-          vulnerabilities: Number(body.vulnerabilities || 0),
-          performanceDeltaPct: Number(body.performanceDeltaPct || 0)
+          week: num(body, 'week', 1),
+          vulnerabilities: num(body, 'vulnerabilities'),
+          performanceDeltaPct: num(body, 'performanceDeltaPct')
         })
         const key = `retainer-runs:${projectId}`
-        const existing = ((await env.MACROCODER_KV.get(key, 'json')) as any[]) || []
+        const existing = ((await env.MACROCODER_KV.get(key, 'json')) as ProofRetainerRun[]) || []
         await env.MACROCODER_KV.put(key, JSON.stringify([...existing, run].slice(-24)))
         return ok({ run })
       }
@@ -499,27 +613,28 @@ export default {
       if (url.pathname.startsWith('/agents/optimize/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/agents/optimize/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
-        const stack = String(body.stack || 'nextjs')
-        const task = body.task ? String(body.task) : undefined
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
+        const stack = str(body, 'stack') || 'nextjs'
+        const task = str(body, 'task') || undefined
         return ok(optimizeAgentPlan({ stack, task }))
       }
 
       if (url.pathname === '/pipeline/prioritize' && request.method === 'GET') {
         const limit = clampNumber(url.searchParams.get('limit'), 1, 200, 50)
         const snapshots = await env.MACROCODER_KV.list({ prefix: 'snapshot:' })
-        const leads: any[] = []
+        const leads: PipelineLead[] = []
 
         for (const item of snapshots.keys.slice(0, 300)) {
           const projectId = item.name.replace('snapshot:', '')
-          const snapshot = (await env.MACROCODER_KV.get(item.name, 'json')) as any
+          const snapshot = (await env.MACROCODER_KV.get(item.name, 'json')) as RepoSnapshot | null
           if (!snapshot) continue
           const conversation = (await env.MACROCODER_KV.get(
             `conversation:${projectId}`,
             'json'
-          )) as any
+          )) as StoredConversation | null
           const ltv = scoreClientLtv(snapshot, conversation)
-          const conversion = estimateConversionProbability(conversation || {}, snapshot)
+          const conversion = estimateConversionProbability(conversation, snapshot)
           leads.push({
             projectId,
             client: conversation?.structuredSummary?.client_name || projectId,
@@ -535,7 +650,7 @@ export default {
           })
         }
 
-        const ranked = rankPipeline(leads as any)
+        const ranked = rankPipeline(leads)
         return ok({
           ...ranked,
           leads: ranked.leads.slice(0, limit),
@@ -554,8 +669,8 @@ export default {
             { stack: 'nextjs', avgHours: 40, avgRate: 80, sampleSize: 1 }
           )
           checks.push({ name: 'oracle_query', ok: !!oracle?.recommendation?.recommendedRate })
-        } catch (err: any) {
-          checks.push({ name: 'oracle_query', ok: false, note: String(err?.message || err) })
+        } catch (err: unknown) {
+          checks.push({ name: 'oracle_query', ok: false, note: errorMessage(err) })
         }
 
         try {
@@ -567,8 +682,8 @@ export default {
           })
           const report = buildRetainerReport(plan, '2026-01')
           checks.push({ name: 'retainer_cycle', ok: Boolean(run?.action && report?.invoiceUsd) })
-        } catch (err: any) {
-          checks.push({ name: 'retainer_cycle', ok: false, note: String(err?.message || err) })
+        } catch (err: unknown) {
+          checks.push({ name: 'retainer_cycle', ok: false, note: errorMessage(err) })
         }
 
         try {
@@ -582,8 +697,8 @@ export default {
             }
           ])
           checks.push({ name: 'pipeline_rank', ok: ranked.top.length === 1 })
-        } catch (err: any) {
-          checks.push({ name: 'pipeline_rank', ok: false, note: String(err?.message || err) })
+        } catch (err: unknown) {
+          checks.push({ name: 'pipeline_rank', ok: false, note: errorMessage(err) })
         }
 
         try {
@@ -596,8 +711,8 @@ export default {
             portfolioCases: 1
           })
           checks.push({ name: 'ops_health', ok: health.score > 0 })
-        } catch (err: any) {
-          checks.push({ name: 'ops_health', ok: false, note: String(err?.message || err) })
+        } catch (err: unknown) {
+          checks.push({ name: 'ops_health', ok: false, note: errorMessage(err) })
         }
 
         const passed = checks.filter((c) => c.ok).length
@@ -711,7 +826,7 @@ export default {
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const snapshot = await getSnapshot(projectId, env)
         if (!conversation) throw new HttpError(404, 'Conversation not found')
 
@@ -726,12 +841,13 @@ export default {
       if (url.pathname.startsWith('/chat/abandoned-check/') && request.method === 'POST') {
         const projectId = url.pathname.replace('/chat/abandoned-check/', '')
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const token = str(body, 'token')
+        await requireProjectAuth(projectId, token, env)
 
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         const count = Array.isArray(conversation?.conversation)
           ? conversation.conversation.length
           : 0
@@ -750,11 +866,8 @@ export default {
 
       if (url.pathname === '/chat' && request.method === 'POST') {
         const body = await readJson(request)
-        const { projectId, token, messages } = body as {
-          projectId: string
-          token: string
-          messages: ChatMessage[]
-        }
+        const bodyTyped = as<ChatRequest>(body)
+        const { projectId, token, messages } = bodyTyped
         if (!Array.isArray(messages) || messages.length === 0)
           throw new HttpError(400, 'Messages are required')
 
@@ -797,7 +910,14 @@ export default {
           await env.MACROCODER_KV.put(variantKey, variant)
         }
 
-        const system = composePromptByVariant(variant as any, baseSystem, snapshot, nextState)
+        const resolvedVariant: PromptVariant =
+          variant === 'v1-consultative' ||
+          variant === 'v2-direct' ||
+          variant === 'v3-educational' ||
+          variant === 'v4-urgency'
+            ? variant
+            : 'v1-consultative'
+        const system = composePromptByVariant(resolvedVariant, baseSystem, snapshot, nextState)
         await emitWebhook('chat.started', { projectId, promptVariant: variant }, env)
 
         // Try MacroCoder engine for chat (routes through egress pipeline)
@@ -847,15 +967,16 @@ export default {
 
       if (url.pathname === '/audit/create' && request.method === 'POST') {
         const body = await readJson(request)
-        await requireProjectAuth(body.projectId, body.token, env)
+        const bodyTyped = as<AuditCreateRequest>(body)
+        await requireProjectAuth(bodyTyped.projectId, bodyTyped.token, env)
 
         const auditId = crypto.randomUUID()
-        const checkoutUrl = await createAuditCheckout(auditId, body.projectId, env)
+        const checkoutUrl = await createAuditCheckout(auditId, bodyTyped.projectId, env)
         await env.MACROCODER_KV.put(
           `audit:${auditId}`,
           JSON.stringify({
             auditId,
-            projectId: body.projectId,
+            projectId: bodyTyped.projectId,
             status: checkoutUrl ? 'pending_payment' : 'paid',
             createdAt: new Date().toISOString()
           })
@@ -867,7 +988,10 @@ export default {
       if (url.pathname.startsWith('/audit/mark-paid/') && request.method === 'POST') {
         if (!isAdminAuthorized(request, env)) throw new HttpError(401, 'Unauthorized')
         const auditId = url.pathname.replace('/audit/mark-paid/', '')
-        const audit = (await env.MACROCODER_KV.get(`audit:${auditId}`, 'json')) as any
+        const audit = (await env.MACROCODER_KV.get(
+          `audit:${auditId}`,
+          'json'
+        )) as AuditRecord | null
         if (!audit) throw new HttpError(404, 'Audit not found')
         const next = { ...audit, status: 'paid', paidAt: new Date().toISOString() }
         await env.MACROCODER_KV.put(`audit:${auditId}`, JSON.stringify(next))
@@ -876,7 +1000,10 @@ export default {
 
       if (url.pathname.startsWith('/audit/report/') && request.method === 'GET') {
         const auditId = url.pathname.replace('/audit/report/', '')
-        const audit = (await env.MACROCODER_KV.get(`audit:${auditId}`, 'json')) as any
+        const audit = (await env.MACROCODER_KV.get(
+          `audit:${auditId}`,
+          'json'
+        )) as AuditRecord | null
         if (!audit) throw new HttpError(404, 'Audit not found')
 
         const authHeader = request.headers.get('authorization') || ''
@@ -893,8 +1020,9 @@ export default {
 
       if (url.pathname === '/conversations' && request.method === 'POST') {
         const body = await readJson(request)
-        await requireProjectAuth(body.projectId, body.token, env)
-        await env.MACROCODER_KV.put(`conversation:${body.projectId}`, JSON.stringify(body))
+        const bodyTyped = as<ConversationSaveRequest>(body)
+        await requireProjectAuth(bodyTyped.projectId, bodyTyped.token, env)
+        await env.MACROCODER_KV.put(`conversation:${bodyTyped.projectId}`, JSON.stringify(body))
         return ok({ success: true })
       }
 
@@ -905,12 +1033,13 @@ export default {
       ) {
         const projectId = url.pathname.split('/')[2]
         const body = await readJson(request)
-        await requireProjectAuth(projectId, body.token, env)
+        const bodyTyped = as<ConversationFinalizeRequest>(body)
+        await requireProjectAuth(projectId, bodyTyped.token, env)
 
         const conversation = (await env.MACROCODER_KV.get(
           `conversation:${projectId}`,
           'json'
-        )) as any
+        )) as StoredConversation | null
         if (!conversation) throw new HttpError(404, 'No conversation to finalize')
 
         const snapshot = await getSnapshot(projectId, env)
@@ -922,7 +1051,7 @@ export default {
         const effort = estimateEffortFromBenchmark(benchmark, complexity)
 
         const structuredSummary = synthesizeLeadSummary({
-          clientName: body.clientName || conversation.clientName || 'unknown',
+          clientName: bodyTyped.clientName || conversation.clientName || 'unknown',
           snapshot,
           transcript,
           budgetEstimate: effort
@@ -965,14 +1094,14 @@ export default {
       }
 
       return error(404, 'Not found')
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (e instanceof HttpError) return error(e.status, e.message)
-      return error(500, e?.message || 'Internal server error')
+      return error(500, errorMessage(e))
     }
   }
 }
 
-async function readJson(request: Request): Promise<Record<string, any>> {
+async function readJson(request: Request): Promise<Record<string, unknown>> {
   let parsed: unknown
   try {
     parsed = await request.json()
@@ -984,7 +1113,31 @@ async function readJson(request: Request): Promise<Record<string, any>> {
     throw new HttpError(400, 'JSON body must be an object')
   }
 
-  return parsed as Record<string, any>
+  return parsed as Record<string, unknown>
+}
+
+function str(body: Record<string, unknown>, key: string, fallback = ''): string {
+  const val = body[key]
+  return typeof val === 'string' ? val : fallback
+}
+
+function num(body: Record<string, unknown>, key: string, fallback = 0): number {
+  const val = body[key]
+  return typeof val === 'number' ? val : fallback
+}
+
+function bool(body: Record<string, unknown>, key: string, fallback = false): boolean {
+  const val = body[key]
+  return typeof val === 'boolean' ? val : fallback
+}
+
+function arr(body: Record<string, unknown>, key: string): unknown[] {
+  const val = body[key]
+  return Array.isArray(val) ? val : []
+}
+
+function as<T>(body: Record<string, unknown>): T {
+  return body as T
 }
 
 async function runBackgroundDeepAnalysis(projectId: string, snapshot: RepoSnapshot, env: Env) {
@@ -1074,15 +1227,24 @@ async function getSnapshot(projectId: string, env: Env): Promise<RepoSnapshot> {
 async function saveConversationAppend(
   projectId: string,
   incomingMessages: ChatMessage[],
-  claudeJson: any,
+  claudeJson: unknown,
   snapshot: RepoSnapshot,
   env: Env
 ) {
-  const existing = (await env.MACROCODER_KV.get(`conversation:${projectId}`, 'json')) as any
-  const assistantText = Array.isArray(claudeJson.content)
-    ? claudeJson.content
-        .map((c: any) => c.text)
+  const existing = (await env.MACROCODER_KV.get(
+    `conversation:${projectId}`,
+    'json'
+  )) as StoredConversation | null
+  const claude = asJsonRecord(claudeJson)
+  const claudeContent = claude?.content
+  const assistantText = Array.isArray(claudeContent)
+    ? claudeContent
+        .map((c: unknown) => {
+          const row = asJsonRecord(c)
+          return row?.text
+        })
         .filter(Boolean)
+        .map(String)
         .join('\n')
     : ''
 
@@ -1091,7 +1253,7 @@ async function saveConversationAppend(
     snapshot,
     timestamp: new Date().toISOString(),
     conversation: [
-      ...((existing?.conversation as any[]) || []),
+      ...(existing?.conversation || []),
       ...incomingMessages,
       { role: 'assistant', content: assistantText }
     ]
@@ -1133,7 +1295,7 @@ async function createAuditCheckout(
   if (!response.ok) return null
   const json = await response.json<unknown>()
   if (!json || typeof json !== 'object' || Array.isArray(json)) return null
-  const url = (json as Record<string, any>).url
+  const url = asJsonRecord(json)?.url
   return typeof url === 'string' ? url : null
 }
 
@@ -1188,11 +1350,11 @@ function enforcePlanQuota(tenant: TenantAccount) {
 }
 
 function buildReplayTimeline(
-  conversation: any,
+  conversation: StoredConversation | null | undefined,
   snapshot: RepoSnapshot
 ): Array<{ ts: string; note: string; annotation: string }> {
-  const messages = Array.isArray(conversation.conversation) ? conversation.conversation : []
-  const startedAt = conversation.timestamp || new Date().toISOString()
+  const messages = Array.isArray(conversation?.conversation) ? conversation.conversation : []
+  const startedAt = conversation?.timestamp || new Date().toISOString()
   const rows: Array<{ ts: string; note: string; annotation: string }> = [
     {
       ts: startedAt,
@@ -1225,8 +1387,11 @@ function buildReplayTimeline(
   return rows
 }
 
-function estimateConversionProbability(conversation: any, snapshot: RepoSnapshot): number {
-  const messages = Array.isArray(conversation.conversation) ? conversation.conversation.length : 0
+function estimateConversionProbability(
+  conversation: StoredConversation | null | undefined,
+  snapshot: RepoSnapshot
+): number {
+  const messages = Array.isArray(conversation?.conversation) ? conversation.conversation.length : 0
   const hasBudget = JSON.stringify(conversation).includes('$')
   const base = hasBudget ? 65 : 45
   const engagement = Math.min(25, messages * 3)
@@ -1234,7 +1399,7 @@ function estimateConversionProbability(conversation: any, snapshot: RepoSnapshot
   return Math.max(5, Math.min(95, base + engagement - riskPenalty))
 }
 
-async function buildWinLossAnalytics(env: Env): Promise<Record<string, any>> {
+async function buildWinLossAnalytics(env: Env): Promise<Record<string, unknown>> {
   const list = await env.MACROCODER_KV.list({ prefix: 'conversation:' })
   let chatted = 0
   let disclosedBudget = 0
@@ -1243,7 +1408,7 @@ async function buildWinLossAnalytics(env: Env): Promise<Record<string, any>> {
 
   for (const key of list.keys) {
     const projectId = key.name.replace('conversation:', '')
-    const conv = (await env.MACROCODER_KV.get(key.name, 'json')) as any
+    const conv = (await env.MACROCODER_KV.get(key.name, 'json')) as StoredConversation | null
     if (!conv) continue
     chatted += 1
     const text = JSON.stringify(conv)
@@ -1266,4 +1431,14 @@ async function buildWinLossAnalytics(env: Env): Promise<Record<string, any>> {
       budgetDisclosureRate: stats.total ? (stats.withBudget / stats.total) * 100 : 0
     }))
   }
+}
+
+function asJsonRecord(value: unknown): JsonRecord | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as JsonRecord
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error || 'Internal server error')
 }

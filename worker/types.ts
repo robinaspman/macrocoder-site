@@ -3,6 +3,7 @@ export interface Env {
   GITHUB_CLIENT_ID: string
   GITHUB_CLIENT_SECRET: string
   MACROCODER_KV: KVNamespace
+  MACROCODER_ENGINE_URL?: string // MacroCoder engine API URL (e.g., http://localhost:8080)
   ADMIN_API_TOKEN?: string
   HARBOR_API_URL?: string
   HARBOR_API_TOKEN?: string
@@ -26,7 +27,6 @@ export interface TenantAccount {
     auditsGenerated: number
   }
 }
-
 
 export interface ClientIntelligence {
   owner: string
@@ -58,7 +58,6 @@ export interface HarborSignals {
   tlsGrade?: string
   fetchedAt: string
 }
-
 
 export interface UpworkIntelligence {
   jobUrl: string

@@ -1,9 +1,12 @@
 import type { ChatMessage, ConversationState, Env, RepoSnapshot } from './types'
 import { runQuickAnalysis } from './analysis'
 
-export async function getConversationState(projectId: string, env: Env): Promise<ConversationState> {
+export async function getConversationState(
+  projectId: string,
+  env: Env
+): Promise<ConversationState> {
   const key = `state:${projectId}`
-  const stored = await env.MACROCODER_KV.get(key, 'json') as ConversationState | null
+  const stored = (await env.MACROCODER_KV.get(key, 'json')) as ConversationState | null
   if (stored) return stored
   return {
     projectId,
@@ -18,7 +21,9 @@ export async function getConversationState(projectId: string, env: Env): Promise
 }
 
 export async function saveConversationState(state: ConversationState, env: Env): Promise<void> {
-  await env.MACROCODER_KV.put(`state:${state.projectId}`, JSON.stringify(state), { expirationTtl: 60 * 60 * 24 * 30 })
+  await env.MACROCODER_KV.put(`state:${state.projectId}`, JSON.stringify(state), {
+    expirationTtl: 60 * 60 * 24 * 30
+  })
 }
 
 export function buildSystemPrompt(input: {
@@ -34,10 +39,12 @@ export function buildSystemPrompt(input: {
   const upworkContext = input.snapshot.upworkIntelligence
     ? `Upwork: proposals=${input.snapshot.upworkIntelligence.proposalCount || 'unknown'}, spend=${input.snapshot.upworkIntelligence.clientSpend || 'unknown'}, budget=${input.snapshot.upworkIntelligence.extractedBudget || 'unknown'}, competition=${input.snapshot.upworkIntelligence.competitionLevel}`
     : 'Upwork: no listing intelligence attached'
-  const findings = [quick.testCoverageSignal, quick.ciSignal, ...quick.qualitySignals].filter(Boolean)
+  const findings = [quick.testCoverageSignal, quick.ciSignal, ...quick.qualitySignals].filter(
+    Boolean
+  )
 
   return [
-    'You are MacroCoder\'s pre-sales analyst and technical negotiator.',
+    "You are MacroCoder's pre-sales analyst and technical negotiator.",
     `Project ID: ${input.projectId}`,
     `Stack Context: ${quick.stackLabel}`,
     `Detected Issues: ${findings.join('; ')}`,
@@ -54,7 +61,10 @@ export function buildSystemPrompt(input: {
   ].join('\n')
 }
 
-export function evolveConversationState(state: ConversationState, latestUserMessage: string): ConversationState {
+export function evolveConversationState(
+  state: ConversationState,
+  latestUserMessage: string
+): ConversationState {
   const text = latestUserMessage.toLowerCase()
   const next = { ...state }
 
@@ -78,7 +88,11 @@ export function evolveConversationState(state: ConversationState, latestUserMess
   return next
 }
 
-export async function callClaude(env: Env, system: string, messages: ChatMessage[]): Promise<Response> {
+export async function callClaude(
+  env: Env,
+  system: string,
+  messages: ChatMessage[]
+): Promise<Response> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -100,4 +114,13 @@ export async function callClaude(env: Env, system: string, messages: ChatMessage
   }
 
   return response
+}
+
+export async function callClaudeParse(
+  env: Env,
+  system: string,
+  messages: ChatMessage[]
+): Promise<unknown> {
+  const response = await callClaude(env, system, messages)
+  return response.json()
 }

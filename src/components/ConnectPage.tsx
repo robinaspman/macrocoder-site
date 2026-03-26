@@ -37,6 +37,10 @@ export function ConnectPage() {
     setStep('analyzing')
 
     try {
+      if (!projectId) {
+        throw new Error('Missing project identifier')
+      }
+
       // Exchange code for token
       const { token } = await handleGitHubCallback(code, state, workerUrl)
 

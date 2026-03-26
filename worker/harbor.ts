@@ -1,5 +1,21 @@
 import type { Env, HarborSignals, RepoSnapshot } from './types'
 
+interface HarborApiResponse {
+  performance?: {
+    load_time_ms?: number
+  }
+  content?: {
+    broken_links?: number
+    seo_issues?: number
+    mobile_issues?: number
+  }
+  security?: {
+    grade?: string
+    findings?: string[]
+    tls_grade?: string
+  }
+}
+
 export async function runHarborScan(snapshot: RepoSnapshot, env: Env): Promise<HarborSignals | null> {
   const targetUrl = snapshot.detectedSiteUrl
   if (!targetUrl) return null
@@ -15,7 +31,7 @@ export async function runHarborScan(snapshot: RepoSnapshot, env: Env): Promise<H
     })
 
     if (response.ok) {
-      const data = await response.json<any>()
+      const data = await response.json<HarborApiResponse>()
       return {
         targetUrl,
         loadTimeMs: data?.performance?.load_time_ms,

@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { Github, Loader2, Check, AlertCircle, ArrowRight } from 'lucide-react'
 import { startGitHubAuth, handleGitHubCallback, fetchRepoSnapshot } from '../lib/github'
 import { getWorkerUrl } from '../lib/api'
+import type { RepoSnapshot } from '../lib/github'
 
 type Step = 'connect' | 'analyzing' | 'chat'
 
@@ -13,7 +14,7 @@ export function ConnectPage() {
 
   const [step, setStep] = useState<Step>('connect')
   const [error, setError] = useState<string | null>(null)
-  const [, setSnapshot] = useState<any>(null)
+  const [, setSnapshot] = useState<RepoSnapshot | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [workerUrl, setWorkerUrl] = useState('')
 
@@ -40,7 +41,11 @@ export function ConnectPage() {
       const { token } = await handleGitHubCallback(code, state, workerUrl)
 
       // Parse owner/repo from project ID (format: owner-repo or owner/repo)
-      const [owner, repo] = projectId!.includes('/') ? projectId!.split('/') : projectId!.split('-')
+      const parsed = projectId.includes('/') ? projectId.split('/') : projectId.split('-')
+      const [owner, repo] = parsed
+      if (!owner || !repo) {
+        throw new Error('Invalid project identifier format')
+      }
 
       // Fetch repo snapshot
       const repoSnapshot = await fetchRepoSnapshot(token, owner, repo)

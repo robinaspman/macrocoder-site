@@ -1,11 +1,27 @@
 import type { Env } from './types'
 
-export async function listLeads(env: Env): Promise<any[]> {
+interface LeadConversation {
+  projectId?: string
+  clientName?: string
+  timestamp?: string
+  structuredSummary?: unknown
+  conversation?: unknown[]
+}
+
+interface LeadListItem {
+  projectId?: string
+  client: string
+  timestamp?: string
+  summary: unknown
+  messageCount: number
+}
+
+export async function listLeads(env: Env): Promise<LeadListItem[]> {
   const list = await env.MACROCODER_KV.list({ prefix: 'conversation:' })
-  const items: any[] = []
+  const items: LeadListItem[] = []
 
   for (const key of list.keys) {
-    const raw = await env.MACROCODER_KV.get(key.name, 'json') as any
+    const raw = await env.MACROCODER_KV.get<LeadConversation>(key.name, 'json')
     if (!raw) continue
     items.push({
       projectId: raw.projectId,
@@ -19,6 +35,6 @@ export async function listLeads(env: Env): Promise<any[]> {
   return items.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
 }
 
-export async function getLead(env: Env, projectId: string): Promise<any | null> {
-  return env.MACROCODER_KV.get(`conversation:${projectId}`, 'json')
+export async function getLead(env: Env, projectId: string): Promise<LeadConversation | null> {
+  return env.MACROCODER_KV.get<LeadConversation>(`conversation:${projectId}`, 'json')
 }

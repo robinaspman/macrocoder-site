@@ -1,7 +1,53 @@
-export function buildContractPackage(projectId: string, rate: number, summary: any, deliveryPlan: any) {
+export interface ContractSummary {
+  scope_summary?: string
+  effort_hours?: number
+}
+
+export interface ContractDeliveryTask {
+  title: string
+  estimatedHours?: number
+}
+
+export interface ContractDeliveryPlan {
+  totalEstimatedHours?: number
+  tasks?: ContractDeliveryTask[]
+}
+
+interface ContractMilestone {
+  title: string
+  trigger: string
+  amount: number
+}
+
+export interface ContractPackage {
+  projectId: string
+  generatedAt: string
+  totalEstimateHours: number
+  hourlyRate: number
+  contractValueEstimate: number
+  markdown: string
+  milestones: ContractMilestone[]
+}
+
+export interface RenderedContractPackage {
+  projectId: string
+  renderedAt: string
+  output: {
+    markdown: string
+    pseudoPdfUrl: string
+    checksum: string
+  }
+}
+
+export function buildContractPackage(
+  projectId: string,
+  rate: number,
+  summary: ContractSummary | null | undefined,
+  deliveryPlan: ContractDeliveryPlan | null | undefined
+): ContractPackage {
   const scope = summary?.scope_summary || 'Scope refined from intake and technical discovery.'
   const hours = Number(summary?.effort_hours || deliveryPlan?.totalEstimatedHours || 40)
-  const milestones = (deliveryPlan?.tasks || []).slice(0, 4).map((task: any, idx: number) => ({
+  const milestones = (deliveryPlan?.tasks || []).slice(0, 4).map((task, idx: number) => ({
     title: task.title,
     trigger: `Milestone ${idx + 1} accepted`,
     amount: Math.round((Number(task.estimatedHours || 4) * rate) * 100) / 100
@@ -22,7 +68,7 @@ export function buildContractPackage(projectId: string, rate: number, summary: a
       '- Testing and release checklist included before handoff.',
       '',
       '## Milestones',
-      ...milestones.map((m: any) => `- ${m.title}: $${m.amount} (${m.trigger})`),
+      ...milestones.map((m) => `- ${m.title}: $${m.amount} (${m.trigger})`),
       '',
       '## Terms',
       `- Rate: $${rate}/hr`,
@@ -39,7 +85,7 @@ export function buildContractPackage(projectId: string, rate: number, summary: a
 }
 
 
-export function renderContractPackage(contract: any) {
+export function renderContractPackage(contract: ContractPackage | null | undefined): RenderedContractPackage {
   const markdown = String(contract?.markdown || '')
   return {
     projectId: contract?.projectId || 'unknown',
@@ -59,7 +105,7 @@ function checksum(input: string): string {
 }
 
 
-export function buildContractSendDraft(rendered: any) {
+export function buildContractSendDraft(rendered: RenderedContractPackage | null | undefined) {
   const url = rendered?.output?.pseudoPdfUrl || 'https://macrocoder.dev/contracts'
   return {
     generatedAt: new Date().toISOString(),

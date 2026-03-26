@@ -1,8 +1,50 @@
 import type { RepoSnapshot } from './types'
 
-export function buildDeliveryProof(projectId: string, snapshot: RepoSnapshot, deliveryPlan: any, conversation: any) {
+interface DeliveryTask {
+  status?: string
+}
+
+export interface ProofDeliveryPlan {
+  tasks?: DeliveryTask[]
+  totalEstimatedHours?: number
+}
+
+interface ConversationSummary {
+  effort_hours?: number
+}
+
+interface ConversationPayload {
+  structuredSummary?: ConversationSummary
+}
+
+export interface DeliveryProof {
+  proofHash?: string
+}
+
+export interface ProofRenderedContract {
+  output?: {
+    checksum?: string
+  }
+}
+
+export interface ProofScopeSummaryPayload {
+  summary?: {
+    estimatedAddedValue?: number
+  }
+}
+
+export interface ProofRetainerRun {
+  escalationSuggested?: boolean
+}
+
+export function buildDeliveryProof(
+  projectId: string,
+  snapshot: RepoSnapshot,
+  deliveryPlan: ProofDeliveryPlan | null | undefined,
+  conversation: ConversationPayload | null | undefined
+) {
   const tasks = Array.isArray(deliveryPlan?.tasks) ? deliveryPlan.tasks : []
-  const completed = tasks.filter((t: any) => t.status === 'completed').length
+  const completed = tasks.filter((t) => t.status === 'completed').length
   const findings = snapshot.deepAnalysis?.riskSignals || []
   const summary = conversation?.structuredSummary || {}
 
@@ -40,10 +82,10 @@ function simpleHash(input: string): string {
 
 export function buildDeliveryPublication(input: {
   projectId: string
-  proof: any
-  contractRender?: any
-  scopeSummary?: any
-  retainerRun?: any
+  proof: DeliveryProof
+  contractRender?: ProofRenderedContract
+  scopeSummary?: ProofScopeSummaryPayload
+  retainerRun?: ProofRetainerRun
 }) {
   return {
     projectId: input.projectId,

@@ -1,4 +1,20 @@
-export function buildPortfolioCase(projectId: string, snapshot: any, summary: any, proof: any) {
+import type { RepoSnapshot } from './types'
+
+interface Summary {
+  scope_summary?: string
+  effort_hours?: number
+}
+
+interface Proof {
+  proofHash?: string
+}
+
+export function buildPortfolioCase(
+  projectId: string,
+  snapshot: RepoSnapshot,
+  summary: Summary | null | undefined,
+  proof: Proof | null | undefined
+) {
   const stack = snapshot?.stack?.frameworks?.length
     ? snapshot.stack.frameworks.join(', ')
     : 'unknown'

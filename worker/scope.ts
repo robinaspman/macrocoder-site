@@ -1,4 +1,16 @@
-export function analyzeScopeCreep(message: string, summary: any, rate: number) {
+interface ScopeSummary {
+  scope_summary?: string
+}
+
+export interface ScopeCreepResult {
+  scopeCreep: boolean
+  estimatedHours: number
+  estimatedCost: number
+  draftReply: string
+  detectedAsks?: string[]
+}
+
+export function analyzeScopeCreep(message: string, summary: ScopeSummary | null | undefined, rate: number): ScopeCreepResult {
   const normalized = message.toLowerCase()
   const baseline = String(summary?.scope_summary || '').toLowerCase()
   const creepSignals = ['also', 'new', 'add', 'another', 'while you are at it', 'can you build']
@@ -35,7 +47,13 @@ function extractAskUnits(message: string): string[] {
 }
 
 
-export function summarizeScopeEvents(events: Array<{ at: string; message: string; result: any }>) {
+export interface ScopeEvent {
+  at: string
+  message: string
+  result: ScopeCreepResult
+}
+
+export function summarizeScopeEvents(events: ScopeEvent[]) {
   const list = Array.isArray(events) ? events : []
   const creep = list.filter((e) => e?.result?.scopeCreep)
   const approved = creep.filter((e) => /approved|yes|ok/i.test(String(e.message || '')))

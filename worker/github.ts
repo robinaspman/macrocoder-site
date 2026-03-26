@@ -4,9 +4,40 @@ interface GitHubTokenRequest {
   code: string
 }
 
+interface GitHubTokenExchangeResponse {
+  access_token?: string
+  token_type?: string
+  scope?: string
+  error?: string
+  error_description?: string
+}
+
+interface GitHubRepoMeta {
+  default_branch?: string
+}
+
+interface GitHubTreeNode {
+  type?: string
+  path?: string
+  size?: number
+}
+
+interface GitHubTreeResponse {
+  tree?: GitHubTreeNode[]
+}
+
+interface GitHubContentResponse {
+  content?: string
+}
+
+type JsonObject = Record<string, unknown>
+
 const GITHUB_API = 'https://api.github.com'
 
-export async function exchangeGitHubToken(body: GitHubTokenRequest, env: Env): Promise<any> {
+export async function exchangeGitHubToken(
+  body: GitHubTokenRequest,
+  env: Env
+): Promise<GitHubTokenExchangeResponse> {
   const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -27,20 +58,20 @@ export async function exchangeGitHubToken(body: GitHubTokenRequest, env: Env): P
 export async function buildRepoSnapshot(owner: string, repo: string, ghToken: string): Promise<RepoSnapshot> {
   const headers = githubHeaders(ghToken)
 
-  const repoMeta = await githubJson<any>(`${GITHUB_API}/repos/${owner}/${repo}`, headers)
+  const repoMeta = await githubJson<GitHubRepoMeta>(`${GITHUB_API}/repos/${owner}/${repo}`, headers)
   const branch = repoMeta.default_branch || 'main'
 
-  const tree = await githubJson<any>(`${GITHUB_API}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, headers)
-  const files = (tree.tree || []).filter((n: any) => n.type === 'blob')
-  const fileTree = files.map((f: any) => f.path)
+  const tree = await githubJson<GitHubTreeResponse>(`${GITHUB_API}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, headers)
+  const files = (tree.tree || []).filter((n): n is GitHubTreeNode & { type: 'blob'; path: string } => n.type === 'blob' && typeof n.path === 'string')
+  const fileTree = files.map((f) => f.path)
 
   const topSourceCandidates = files
-    .filter((f: any) => /\.(ts|tsx|js|jsx|rs|py|go|java|kt|swift|php)$/i.test(f.path))
-    .sort((a: any, b: any) => (b.size || 0) - (a.size || 0))
+    .filter((f) => /\.(ts|tsx|js|jsx|rs|py|go|java|kt|swift|php)$/i.test(f.path))
+    .sort((a, b) => (b.size || 0) - (a.size || 0))
     .slice(0, 10)
 
   const topSourceFiles = await Promise.all(
-    topSourceCandidates.map(async (f: any) => {
+    topSourceCandidates.map(async (f) => {
       const snippet = await fetchFileSnippet(owner, repo, branch, f.path, headers)
       return { path: f.path, size: f.size || 0, snippet }
     })
@@ -103,7 +134,7 @@ async function fetchFileSnippet(
 ): Promise<string | undefined> {
   const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`, { headers })
   if (!response.ok) return undefined
-  const payload = await response.json<any>()
+  const payload = await response.json<GitHubContentResponse>()
   if (!payload.content) return undefined
   const decoded = decodeBase64(payload.content)
   return decoded.slice(0, 1200)
@@ -115,15 +146,16 @@ async function fetchJsonFile(
   branch: string,
   path: string,
   headers: Record<string, string>
-): Promise<any | null> {
+): Promise<JsonObject | null> {
   const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`, { headers })
   if (!response.ok) return null
 
-  const payload = await response.json<any>()
+  const payload = await response.json<GitHubContentResponse>()
   if (!payload.content) return null
 
   try {
-    return JSON.parse(decodeBase64(payload.content))
+    const parsed = JSON.parse(decodeBase64(payload.content))
+    return (typeof parsed === 'object' && parsed !== null) ? (parsed as JsonObject) : null
   } catch {
     return null
   }
@@ -137,17 +169,19 @@ function decodeBase64(value: string): string {
   }
 }
 
-function detectStack(fileTree: string[], packageJson: any | null) {
+function detectStack(fileTree: string[], packageJson: JsonObject | null) {
   const frameworks = new Set<string>()
   const languages = new Set<string>()
   const packageManagers = new Set<string>()
+
+  const deps = asStringMap(packageJson?.dependencies)
 
   if (fileTree.some((p) => p === 'next.config.js' || p === 'next.config.mjs')) frameworks.add('nextjs')
   if (fileTree.some((p) => p.includes('nuxt.config'))) frameworks.add('nuxt')
   if (fileTree.some((p) => p.includes('prisma/schema.prisma'))) frameworks.add('prisma')
   if (fileTree.some((p) => p.includes('svelte.config'))) frameworks.add('svelte')
-  if (packageJson?.dependencies?.['react']) frameworks.add('react')
-  if (packageJson?.dependencies?.['express']) frameworks.add('express')
+  if (deps?.react) frameworks.add('react')
+  if (deps?.express) frameworks.add('express')
 
   if (fileTree.some((p) => p.endsWith('.rs'))) languages.add('rust')
   if (fileTree.some((p) => p.endsWith('.ts') || p.endsWith('.tsx'))) languages.add('typescript')
@@ -178,16 +212,25 @@ function findOutdatedHints(dependencies: string[]): string[] {
 async function fetchReadme(owner: string, repo: string, headers: Record<string, string>): Promise<string> {
   const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/readme`, { headers })
   if (!response.ok) return ''
-  const payload = await response.json<any>()
+  const payload = await response.json<GitHubContentResponse>()
   if (!payload.content) return ''
   return decodeBase64(payload.content)
 }
 
-function detectSiteUrl(packageJson: any | null, readme: string): string | undefined {
+function detectSiteUrl(packageJson: JsonObject | null, readme: string): string | undefined {
   const homepage = packageJson?.homepage
   if (typeof homepage === 'string' && /^https?:\/\//.test(homepage)) return homepage
 
   const match = readme.match(/https?:\/\/[\w.-]+(?:\/[\w./?%&=-]*)?/i)
   if (match) return match[0]
   return undefined
+}
+
+function asStringMap(value: unknown): Record<string, string> | null {
+  if (typeof value !== 'object' || value === null) return null
+  const out: Record<string, string> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'string') out[key] = item
+  }
+  return out
 }

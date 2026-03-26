@@ -2,6 +2,20 @@ import type { ClientIntelligence, RepoSnapshot } from './types'
 
 const GITHUB_API = 'https://api.github.com'
 
+interface GitHubProfile {
+  public_repos?: number
+  followers?: number
+}
+
+interface GitHubRepo {
+  stargazers_count?: number
+  language?: string | null
+}
+
+interface GitHubOrg {
+  id?: number
+}
+
 export async function gatherClientIntelligence(snapshot: RepoSnapshot, githubToken?: string): Promise<ClientIntelligence> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -10,9 +24,9 @@ export async function gatherClientIntelligence(snapshot: RepoSnapshot, githubTok
   if (githubToken) headers.Authorization = `Bearer ${githubToken}`
 
   const owner = snapshot.owner
-  const profile = await safeJson<any>(`${GITHUB_API}/users/${owner}`, headers)
-  const repos = await safeJson<any[]>(`${GITHUB_API}/users/${owner}/repos?per_page=100`, headers)
-  const orgs = await safeJson<any[]>(`${GITHUB_API}/users/${owner}/orgs`, headers)
+  const profile = await safeJson<GitHubProfile>(`${GITHUB_API}/users/${owner}`, headers)
+  const repos = await safeJson<GitHubRepo[]>(`${GITHUB_API}/users/${owner}/repos?per_page=100`, headers)
+  const orgs = await safeJson<GitHubOrg[]>(`${GITHUB_API}/users/${owner}/orgs`, headers)
 
   const repoCount = repos?.length || profile?.public_repos || 0
   const stars = (repos || []).reduce((sum, r) => sum + (r.stargazers_count || 0), 0)

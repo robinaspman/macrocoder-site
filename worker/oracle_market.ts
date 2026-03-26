@@ -7,7 +7,9 @@ export interface MarketSignal {
   capturedAt: string
 }
 
-export function normalizeMarketSignal(input: any): MarketSignal {
+type MarketSignalInput = Partial<MarketSignal> & Record<string, unknown>
+
+export function normalizeMarketSignal(input: MarketSignalInput): MarketSignal {
   const low = Math.max(10, Number(input.rateLow || 0))
   const high = Math.max(low, Number(input.rateHigh || low))
   return {

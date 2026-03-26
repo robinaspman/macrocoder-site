@@ -17,10 +17,25 @@ interface FeedJob {
   clientSpend: number
 }
 
+interface HuntRecommendation {
+  job_id: string
+  title: string
+  budget: string
+  client_verified: boolean
+  proposal_count: number
+  conversion_probability: number
+  recommendation: string
+}
+
+interface HuntSkippedItem {
+  title: string
+  reason: string
+}
+
 export function runGhostHunt(input: HuntInput, snapshot?: RepoSnapshot) {
   const stacks = input.stacks.map((s) => s.toLowerCase())
-  const recommendations = [] as any[]
-  const skipped = [] as any[]
+  const recommendations: HuntRecommendation[] = []
+  const skipped: HuntSkippedItem[] = []
 
   for (const job of deriveFeed(snapshot)) {
     const stackFit = overlap(stacks, job.stack)

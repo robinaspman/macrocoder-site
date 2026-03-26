@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { saveConversation } from '../lib/api'
+import type { RepoSnapshot } from '../lib/github'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -11,7 +12,7 @@ interface Message {
 interface ChatProps {
   projectId: string
   token: string
-  snapshot: any
+  snapshot: RepoSnapshot
   workerUrl: string
 }
 

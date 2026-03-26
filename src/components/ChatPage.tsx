@@ -2,13 +2,20 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { Chat } from './Chat'
 import { getWorkerUrl, getConversation } from '../lib/api'
 import { useEffect, useState } from 'react'
+import type { RepoSnapshot } from '../lib/github'
+
+interface ChatLocationState {
+  snapshot?: RepoSnapshot
+}
 
 export function ChatPage() {
   const [searchParams] = useSearchParams()
   const location = useLocation()
   const projectId = searchParams.get('project') || 'unknown'
   const token = searchParams.get('token') || ''
-  const [snapshot, setSnapshot] = useState(location.state?.snapshot)
+  const [snapshot, setSnapshot] = useState<RepoSnapshot | null>(
+    (location.state as ChatLocationState | null)?.snapshot ?? null
+  )
   const [workerUrl, setWorkerUrl] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -26,7 +33,7 @@ export function ChatPage() {
     } else {
       setIsLoading(false)
     }
-  }, [])
+  }, [projectId, snapshot])
 
   if (isLoading) {
     return (

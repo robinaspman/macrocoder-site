@@ -11,10 +11,37 @@ export interface GitHubTokenResponse {
 export interface RepoSnapshot {
   name: string
   description: string | null
-  tree: any[]
-  packageJson: any | null
+  tree: RepoTreeNode[]
+  packageJson: PackageJson | null
   readme: string | null
   keyFiles: Record<string, string>
+}
+
+export interface RepoTreeNode {
+  path: string
+  type?: string
+  size?: number
+}
+
+export interface PackageJson {
+  homepage?: string
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+  [key: string]: unknown
+}
+
+interface RepoMeta {
+  name: string
+  description: string | null
+  default_branch?: string
+}
+
+interface ContentResponse {
+  content?: string
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
 }
 
 // Generate random state for OAuth security
@@ -71,7 +98,7 @@ export async function handleGitHubCallback(
     throw new Error('Failed to exchange code for token')
   }
 
-  const data = await response.json()
+  const data = await response.json() as GitHubTokenResponse
 
   // Clear OAuth state
   sessionStorage.removeItem('oauth_state')
@@ -100,7 +127,7 @@ export async function fetchRepoSnapshot(
     throw new Error('Failed to fetch repository')
   }
 
-  const repoData = await repoResponse.json()
+  const repoData = await repoResponse.json() as RepoMeta
 
   // Fetch file tree
   const treeResponse = await fetch(
@@ -108,7 +135,9 @@ export async function fetchRepoSnapshot(
     { headers }
   )
 
-  const treeData = treeResponse.ok ? await treeResponse.json() : { tree: [] }
+  const treeData = (treeResponse.ok ? await treeResponse.json() : { tree: [] }) as {
+    tree?: RepoTreeNode[]
+  }
 
   // Try to fetch package.json
   let packageJson = null
@@ -118,10 +147,11 @@ export async function fetchRepoSnapshot(
       { headers }
     )
     if (pkgResponse.ok) {
-      const pkgData = await pkgResponse.json()
-      packageJson = JSON.parse(atob(pkgData.content))
+      const pkgData = await pkgResponse.json() as ContentResponse
+      const parsed = JSON.parse(atob(pkgData.content || ''))
+      packageJson = asObject(parsed) as PackageJson | null
     }
-  } catch (e) {
+  } catch {
     // No package.json
   }
 
@@ -132,10 +162,10 @@ export async function fetchRepoSnapshot(
       headers
     })
     if (readmeResponse.ok) {
-      const readmeData = await readmeResponse.json()
-      readme = atob(readmeData.content)
+      const readmeData = await readmeResponse.json() as ContentResponse
+      readme = atob(readmeData.content || '')
     }
-  } catch (e) {
+  } catch {
     // No README
   }
 
@@ -157,10 +187,10 @@ export async function fetchRepoSnapshot(
         { headers }
       )
       if (fileResponse.ok) {
-        const fileData = await fileResponse.json()
-        keyFiles[path] = atob(fileData.content)
+        const fileData = await fileResponse.json() as ContentResponse
+        keyFiles[path] = atob(fileData.content || '')
       }
-    } catch (e) {
+    } catch {
       // File doesn't exist
     }
   }

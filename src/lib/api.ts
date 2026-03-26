@@ -1,3 +1,5 @@
+import type { RepoSnapshot } from './github'
+
 // API configuration
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://macrocoder-worker.your.workers.dev'
 
@@ -9,7 +11,7 @@ export interface ChatMessage {
 export interface ChatRequest {
   projectId: string
   token: string
-  snapshot: any
+  snapshot: RepoSnapshot
   messages: ChatMessage[]
 }
 
@@ -26,7 +28,7 @@ export async function sendChatMessage(request: ChatRequest): Promise<Response> {
 export async function saveConversation(
   projectId: string,
   token: string,
-  snapshot: any,
+  snapshot: RepoSnapshot,
   conversation: ChatMessage[]
 ): Promise<void> {
   const response = await fetch(`${WORKER_URL}/conversations`, {
@@ -54,7 +56,7 @@ export async function getWorkerUrl(): Promise<string> {
 
 export async function getConversation(
   projectId: string
-): Promise<{ conversation: ChatMessage[]; snapshot: any } | null> {
+): Promise<{ conversation: ChatMessage[]; snapshot: RepoSnapshot } | null> {
   try {
     const response = await fetch(`${WORKER_URL}/conversations/${projectId}`, {
       method: 'GET',

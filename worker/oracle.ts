@@ -1,4 +1,5 @@
 import type { PricingBenchmark } from './pricing'
+import type { RepoSnapshot } from './types'
 
 const marketRates: Record<string, { low: number; high: number }> = {
   nextjs: { low: 70, high: 105 },
@@ -49,7 +50,7 @@ function projectedWinRate(targetRate: number, baselineRate: number): string {
   return `${rate.toFixed(1)}%`
 }
 
-export function scoreClientLtv(snapshot: any, conversation: any) {
+export function scoreClientLtv(snapshot: RepoSnapshot | null | undefined, conversation: unknown) {
   const repoActive = (snapshot?.fileTree?.length || 0) > 120
   const teamSignal = (snapshot?.clientIntelligence?.orgMemberCount || 1) >= 3
   const spend = String(snapshot?.upworkIntelligence?.clientSpend || '')

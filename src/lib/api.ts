@@ -1,80 +1,40 @@
-import type { RepoSnapshot } from './github'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// API configuration
-const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://macrocoder-worker.your.workers.dev'
-
-export interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
+export interface ReviewRequest {
+  type: 'github' | 'website' | 'upwork'
+  owner?: string
+  repo?: string
+  url?: string
+  description?: string
 }
 
-export interface ChatRequest {
-  projectId: string
-  token: string
-  snapshot: RepoSnapshot
-  messages: ChatMessage[]
+export interface ReviewResult {
+  verdict: string
+  fixes: string[]
+  direction: string
+  quote?: {
+    price: string
+    timeline: string
+    scope: string[]
+  }
 }
 
-export async function sendChatMessage(request: ChatRequest): Promise<Response> {
-  return fetch(`${WORKER_URL}/chat`, {
+export async function submitReview(request: ReviewRequest): Promise<ReviewResult> {
+  const response = await fetch(`${API_URL}/api/review`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(request)
-  })
-}
-
-export async function saveConversation(
-  projectId: string,
-  token: string,
-  snapshot: RepoSnapshot,
-  conversation: ChatMessage[]
-): Promise<void> {
-  const response = await fetch(`${WORKER_URL}/conversations`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      projectId,
-      token,
-      snapshot,
-      conversation,
-      timestamp: new Date().toISOString()
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
   })
 
   if (!response.ok) {
-    throw new Error('Failed to save conversation')
+    throw new Error('Review failed')
   }
+
+  return response.json()
 }
 
-export async function getWorkerUrl(): Promise<string> {
-  return WORKER_URL
-}
-
-export async function getConversation(
-  projectId: string
-): Promise<{ conversation: ChatMessage[]; snapshot: RepoSnapshot } | null> {
-  try {
-    const response = await fetch(`${WORKER_URL}/conversations/${projectId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null
-      }
-      throw new Error('Failed to fetch conversation')
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Error fetching conversation:', error)
-    return null
-  }
+export async function getReviewStatus(sessionId: string): Promise<{ status: string; result?: ReviewResult }> {
+  const response = await fetch(`${API_URL}/api/review/${sessionId}`)
+  if (!response.ok) throw new Error('Status check failed')
+  return response.json()
 }

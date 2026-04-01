@@ -22,6 +22,7 @@ const FALLBACK_RESULTS: Record<InputMode, ReviewResult> = {
       "Use clearer trust cues and shorter copy above the fold.",
     ],
     direction: "Best direction: React + Tailwind with a tighter conversion-first review flow.",
+    categories: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
   },
   website: {
     verdict: "The site has strong visual potential, but the messaging and CTA structure should be simplified to increase conversion.",
@@ -31,6 +32,7 @@ const FALLBACK_RESULTS: Record<InputMode, ReviewResult> = {
       "Create a stronger bridge between the review result and the hire action.",
     ],
     direction: "Best direction: Simplify messaging first, then improve the page structure and CTA path.",
+    categories: ['Slow Load', 'Bad UX', 'No SEO', 'Broken Links', 'No Analytics'],
   },
   upwork: {
     verdict: "The job post is workable, but it would benefit from a clearer execution plan and a more confident implementation pitch.",
@@ -40,6 +42,7 @@ const FALLBACK_RESULTS: Record<InputMode, ReviewResult> = {
       "Guide the client toward a single clean next action.",
     ],
     direction: "Best direction: present a concise execution path and move the client into a hire decision faster.",
+    categories: ['Vague Scope', 'Unrealistic Budget', 'Missing Timeline', 'Unclear Requirements', 'High Competition'],
   },
 }
 
@@ -242,6 +245,7 @@ export function ResultsPage() {
             owner={mode === 'github' ? (searchParams.get('owner') || undefined) : undefined}
             repo={mode === 'github' ? (searchParams.get('repo') || undefined) : undefined}
             url={mode === 'website' ? (searchParams.get('url') || undefined) : undefined}
+            categories={result?.categories}
           />
 
           {/* Results section - appears below when done */}

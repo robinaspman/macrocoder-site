@@ -148,6 +148,70 @@ def _flags_from_upwork(extracted: dict) -> ProjectFeatureFlags:
     return flags
 
 
+def _derive_categories(intake: ProjectIntake, result: Dict[str, Any]) -> list[str]:
+    """Derive problem categories from actual pipeline data."""
+    categories: list[str] = []
+    flags = intake.feature_flags
+    repo = intake.repo_profile
+    red_flags = result.get("red_flags", [])
+    estimate = result.get("estimate")
+
+    if intake.source_kind == "github":
+        if repo:
+            if not repo.tests_present:
+                categories.append("Missing Tests")
+            if not repo.ci_indicators:
+                categories.append("No CI/CD")
+            if repo.env_files_present:
+                categories.append("Env Security")
+            if not repo.docker:
+                categories.append("No Docker")
+        if flags and not flags.auth:
+            categories.append("No Auth")
+        if flags and not flags.payments:
+            pass
+        if estimate and estimate.complexity_score and estimate.complexity_score >= 7:
+            categories.append("High Complexity")
+
+    elif intake.source_kind == "website":
+        if flags and not flags.seo:
+            categories.append("No SEO")
+        if flags and not flags.analytics:
+            categories.append("No Analytics")
+        if flags and not flags.auth:
+            categories.append("No Auth")
+        if flags and not flags.payments:
+            pass
+
+    elif intake.source_kind == "upwork":
+        if flags and not flags.frontend:
+            categories.append("No Frontend Spec")
+        if flags and flags.ai_features and estimate and estimate.price_range and estimate.price_range[0] < 1000:
+            categories.append("AI Budget Mismatch")
+
+    if red_flags:
+        for rf in red_flags[:3]:
+            msg = str(rf).lower()
+            if "budget" in msg:
+                categories.append("Budget Risk")
+            elif "timeline" in msg or "aggressive" in msg:
+                categories.append("Timeline Risk")
+            elif "scope" in msg or "vague" in msg:
+                categories.append("Vague Scope")
+            elif "payment" in msg or "backend" in msg:
+                categories.append("Payments No Backend")
+
+    if not categories:
+        if intake.source_kind == "github":
+            categories = ["Code Quality", "Missing Tests", "No CI/CD", "Security", "Outdated Deps"]
+        elif intake.source_kind == "website":
+            categories = ["Slow Load", "Bad UX", "No SEO", "Broken Links", "No Analytics"]
+        else:
+            categories = ["Vague Scope", "Unrealistic Budget", "Missing Timeline", "Unclear Requirements", "High Competition"]
+
+    return categories
+
+
 def _format_response(intake: ProjectIntake, result: Dict[str, Any]) -> Dict[str, Any]:
     """Format toolkit output for the frontend."""
     estimate = result.get("estimate")
@@ -197,6 +261,7 @@ def _format_response(intake: ProjectIntake, result: Dict[str, Any]) -> Dict[str,
         "estimate": _serialize_estimate(estimate) if estimate else None,
         "red_flags": [str(f) for f in red_flags],
         "seriousness": seriousness.score if seriousness else None,
+        "categories": _derive_categories(intake, result),
     }
 
 

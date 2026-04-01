@@ -15,6 +15,12 @@ import {
 
 type InputMode = 'github' | 'website' | 'upwork' | 'multiple'
 
+const PROBLEM_CATEGORIES: Record<InputMode, string[]> = {
+  github: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
+  website: ['Slow Load', 'Bad UX', 'No SEO', 'Broken Links', 'No Analytics'],
+  upwork: ['Vague Scope', 'Unrealistic Budget', 'Missing Timeline', 'Unclear Requirements', 'High Competition'],
+  multiple: ['Security', 'Code Quality', 'Slow Load', 'Bad UX', 'Vague Scope', 'No SEO', 'Missing Tests', 'No CI/CD', 'Unclear Requirements'],
+}
 const INPUT_MODES: Record<InputMode, { label: string; placeholder: string; helper: string; icon: typeof Github; prefix: string }> = {
   github: {
     label: 'GitHub Repo',
@@ -100,14 +106,14 @@ export function HomePage() {
       sessionStorage.setItem('mc_github_token', githubToken)
     }
 
-    const githubMatch = input.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/)
+    const githubMatch = input.match(/(?:www\.)?github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/)
     if (githubMatch) {
       const [, owner, repo] = githubMatch
       navigate(`/results?mode=github&owner=${owner}&repo=${repo}`)
       return
     }
 
-    const upworkMatch = input.match(/upwork\.com\/jobs\/(~[\w]+)/)
+    const upworkMatch = input.match(/(?:www\.)?upwork\.com\/jobs\/(~[\w]+)/)
     if (upworkMatch) {
       navigate(`/results?mode=upwork&jobId=${upworkMatch[1]}`)
       return
@@ -120,8 +126,9 @@ export function HomePage() {
     }
 
     try {
-      new URL(input)
-      navigate(`/results?mode=website&url=${encodeURIComponent(input)}`)
+      const urlInput = input.startsWith('www.') ? `https://${input}` : input
+      new URL(urlInput)
+      navigate(`/results?mode=website&url=${encodeURIComponent(urlInput)}`)
     } catch {
       setError('Please enter a valid URL (GitHub repo, website, or Upwork job post)')
     }
@@ -186,6 +193,18 @@ export function HomePage() {
             <div className="p-6 sm:p-7">
               <p className="mb-4 text-[15px] text-[#84705d]">{currentMode.helper}</p>
 
+              <div className="flex flex-wrap gap-2 mb-5">
+                {PROBLEM_CATEGORIES[mode].map((cat) => (
+                  <span
+                    key={cat}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#5d3b11] bg-[#1c120a] px-3 py-1 text-[12px] text-[#c9943e]"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#e59a1d]" />
+                    {cat}
+                  </span>
+                ))}
+              </div>
+
               {error && (
                 <div className="mb-4 flex items-center gap-2.5 rounded-md border border-[#3a1a10] bg-[#1a0d08] px-4 py-2.5">
                   <AlertCircle className="h-3.5 w-3.5 text-[#c45a3a] flex-shrink-0" />
@@ -213,6 +232,7 @@ export function HomePage() {
                       <Github className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
                       <input
                         type="text"
+                        autoComplete="url"
                         placeholder="GitHub profile URL (e.g. https://github.com/user)"
                         className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
                       />
@@ -221,6 +241,7 @@ export function HomePage() {
                       <Globe className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
                       <input
                         type="text"
+                        autoComplete="url"
                         placeholder="Website URL (e.g. https://yoursite.com)"
                         className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
                       />
@@ -229,6 +250,7 @@ export function HomePage() {
                       <Briefcase className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
                       <input
                         type="text"
+                        autoComplete="url"
                         placeholder="Upwork profile or job URL"
                         className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
                       />
@@ -243,20 +265,21 @@ export function HomePage() {
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
+                      autoComplete="url"
                       placeholder={currentMode.placeholder}
                       className="w-full bg-transparent text-[20px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
                     />
                   </div>
                 )}
 
-                {mode === 'github' && (
+                {(mode === 'github' || mode === 'multiple') && (
                   <div className="flex items-center gap-3 mb-5">
                     <span className="text-[15px] text-[#84705d]">Or</span>
                     <div className="flex-1 h-px bg-[#2b1a10]" />
                   </div>
                 )}
 
-                {mode === 'github' && (
+                {(mode === 'github' || mode === 'multiple') && (
                   <button
                     type="button"
                     onClick={handleGitHubLogin}

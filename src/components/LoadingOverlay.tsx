@@ -3,6 +3,12 @@ import { Loader2, CheckCircle2, XCircle, Sparkles, Globe, Github, Briefcase, Cal
 
 type InputMode = 'github' | 'website' | 'upwork'
 
+const PROBLEM_CATEGORIES: Record<InputMode, string[]> = {
+  github: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
+  website: ['Slow Load', 'Bad UX', 'No SEO', 'Broken Links', 'No Analytics'],
+  upwork: ['Vague Scope', 'Unrealistic Budget', 'Missing Timeline', 'Unclear Requirements', 'High Competition'],
+}
+
 const ANALYSIS_STEPS = [
   { label: 'Fetching source', detail: 'Connecting to repository...' },
   { label: 'Reading structure', detail: 'Mapping file tree and dependencies...' },
@@ -49,6 +55,7 @@ interface LoadingOverlayProps {
   owner?: string
   repo?: string
   url?: string
+  categories?: string[]
 }
 
 async function fetchGitHubFiles(owner: string, repo: string, token?: string, branch = 'main'): Promise<RepoFile[]> {
@@ -161,7 +168,7 @@ function FileContent({ file }: { file: RepoFile }) {
   )
 }
 
-export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplete, stepResults, projectSummary, owner, repo }: LoadingOverlayProps) {
+export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplete, stepResults, projectSummary, owner, repo, categories }: LoadingOverlayProps) {
   const SourceIcon = mode === 'github' ? Github : mode === 'website' ? Globe : Briefcase
   const [expandedStep, setExpandedStep] = useState<number | null>(0)
   const [repoFiles, setRepoFiles] = useState<RepoFile[]>([])
@@ -366,6 +373,21 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
                   ))}
                 </div>
               )}
+
+              <div>
+                <p className="text-[12px] uppercase tracking-wider text-[#6d5235] mb-3">Problem Categories</p>
+                <div className="flex flex-wrap gap-2">
+                  {(categories || PROBLEM_CATEGORIES[mode]).map((cat) => (
+                    <span
+                      key={cat}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#5d3b11] bg-[#1c120a] px-3 py-1 text-[12px] text-[#c9943e]"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#e59a1d]" />
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 relative">

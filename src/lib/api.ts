@@ -12,6 +12,7 @@ export interface ReviewResult {
   verdict: string
   fixes: string[]
   direction: string
+  categories: string[]
   quote?: {
     price: string
     timeline: string

@@ -31,9 +31,15 @@ frontend/out
 frontend/node_modules
 
 # Backend (FastAPI)
-backend/__pycache__
 backend/.venv
-backend/**/__pycache__
+backend/.cache
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.cache/
 
 # Python scripts (toolkits, zips, caches)
 python scripts/

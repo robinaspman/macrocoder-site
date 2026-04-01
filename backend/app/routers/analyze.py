@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from arq.connections import ArqRedis
-from app.core.database import get_db
+from app.core.database import get_db, arq_pool
 from app.core.logging import logger
 from app.core.config import settings
 from app.models import Analysis, AnalysisStatus, User
@@ -33,6 +33,7 @@ class AnalyzeRequest(BaseModel):
     url: Optional[str] = None
     job_id: Optional[str] = None
     description: Optional[str] = None
+    async_mode: Optional[bool] = False
 
 
 @router.post("/review")
@@ -42,7 +43,9 @@ async def start_review(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a review request with full SSRF protection and rate limiting.
-    Uses the lead_review_toolkit_plus pipeline for analysis."""
+    Uses the lead_review_toolkit_plus pipeline for analysis.
+    If async_mode=True, enqueues an ARQ job and returns immediately for polling.
+    """
     session_id = request.client.host if request.client else "unknown"
 
     try:
@@ -77,6 +80,43 @@ async def start_review(
     else:
         raise HTTPException(400, "Invalid review type")
 
+    # Async mode: enqueue ARQ job, return immediately
+    if body.async_mode:
+        analysis = Analysis(
+            user_id=uuid.uuid4(),
+            repo_owner=review_type,
+            repo_name=source,
+            status=AnalysisStatus.PENDING,
+        )
+        db.add(analysis)
+        await db.flush()
+
+        job_data = {
+            "analysis_id": str(analysis.id),
+            "type": review_type,
+            "owner": body.owner,
+            "repo": body.repo,
+            "url": body.url,
+            "description": body.description,
+        }
+
+        pool = await arq_pool()
+        await pool.enqueue_job("run_analysis_job", job_data)
+
+        logger.info(
+            "review_enqueued",
+            analysis_id=str(analysis.id),
+            type=review_type,
+            source=source,
+        )
+
+        return {
+            "id": str(analysis.id),
+            "status": "pending",
+            "message": "Analysis queued. Poll /api/review/{id} for results.",
+        }
+
+    # Sync mode: run inline (existing behavior)
     try:
         review_result = await process_review(
             review_type=review_type,

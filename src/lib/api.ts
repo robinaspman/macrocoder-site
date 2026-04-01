@@ -6,6 +6,7 @@ export interface ReviewRequest {
   repo?: string
   url?: string
   description?: string
+  async_mode?: boolean
 }
 
 export interface ReviewResult {
@@ -20,7 +21,24 @@ export interface ReviewResult {
   }
 }
 
-export async function submitReview(request: ReviewRequest): Promise<ReviewResult> {
+export interface ReviewStatus {
+  id: string
+  type: string
+  source: string
+  status: string
+  result?: ReviewResult
+  error_message?: string
+  created_at?: string
+  completed_at?: string
+}
+
+export interface ReviewEnqueued {
+  id: string
+  status: 'pending'
+  message: string
+}
+
+export async function submitReview(request: ReviewRequest): Promise<ReviewResult | ReviewEnqueued> {
   const response = await fetch(`${API_URL}/api/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -34,8 +52,47 @@ export async function submitReview(request: ReviewRequest): Promise<ReviewResult
   return response.json()
 }
 
-export async function getReviewStatus(sessionId: string): Promise<{ status: string; result?: ReviewResult }> {
-  const response = await fetch(`${API_URL}/api/review/${sessionId}`)
+export async function getReviewStatus(analysisId: string): Promise<ReviewStatus> {
+  const response = await fetch(`${API_URL}/api/review/${analysisId}`)
   if (!response.ok) throw new Error('Status check failed')
   return response.json()
+}
+
+export async function pollReviewStatus(
+  analysisId: string,
+  onStatus: (status: ReviewStatus) => void,
+  intervalMs = 2000,
+  timeoutMs = 120000,
+): Promise<ReviewStatus> {
+  const start = Date.now()
+
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        const status = await getReviewStatus(analysisId)
+        onStatus(status)
+
+        if (status.status === 'complete') {
+          resolve(status)
+          return
+        }
+
+        if (status.status === 'failed') {
+          reject(new Error(status.error_message || 'Analysis failed'))
+          return
+        }
+
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error('Analysis timed out'))
+          return
+        }
+
+        setTimeout(poll, intervalMs)
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    poll()
+  })
 }

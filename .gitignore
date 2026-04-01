@@ -25,11 +25,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Frontend (Next.js)
-frontend/.next
-frontend/out
-frontend/node_modules
-
 # Backend (FastAPI)
 backend/.venv
 backend/.cache

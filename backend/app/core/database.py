@@ -1,4 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from arq.connections import ArqRedis, create_pool
+from arq.connections import RedisSettings
 from app.core.config import settings
 
 engine = create_async_engine(
@@ -12,6 +14,18 @@ engine = create_async_engine(
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+_arq_pool: ArqRedis | None = None
+
+
+async def arq_pool() -> ArqRedis:
+    global _arq_pool
+    if _arq_pool is None:
+        _arq_pool = await create_pool(
+            RedisSettings.from_dsn(settings.REDIS_URL),
+            max_tries=1,
+        )
+    return _arq_pool
 
 
 async def get_db() -> AsyncSession:

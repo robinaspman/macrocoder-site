@@ -12,15 +12,9 @@ import {
   AlertCircle,
   ChevronDown,
 } from 'lucide-react'
+import { PROBLEM_CATEGORIES } from '../constants'
 
 type InputMode = 'github' | 'website' | 'upwork' | 'multiple'
-
-const PROBLEM_CATEGORIES: Record<InputMode, string[]> = {
-  github: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
-  website: ['Slow Load', 'Bad UX', 'No SEO', 'Broken Links', 'No Analytics'],
-  upwork: ['Vague Scope', 'Unrealistic Budget', 'Missing Timeline', 'Unclear Requirements', 'High Competition'],
-  multiple: ['Security', 'Code Quality', 'Slow Load', 'Bad UX', 'Vague Scope', 'No SEO', 'Missing Tests', 'No CI/CD', 'Unclear Requirements'],
-}
 const INPUT_MODES: Record<InputMode, { label: string; placeholder: string; helper: string; icon: typeof Github; prefix: string }> = {
   github: {
     label: 'GitHub Repo',

@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Loader2, CheckCircle2, XCircle, Sparkles, Globe, Github, Briefcase, Calendar, User, FileText, Tag, ChevronDown, FileCode, Folder, ChevronRight } from 'lucide-react'
+import { PROBLEM_CATEGORIES } from '../constants'
 
 type InputMode = 'github' | 'website' | 'upwork'
-
-const PROBLEM_CATEGORIES: Record<InputMode, string[]> = {
-  github: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
-  website: ['Slow Load', 'Bad UX', 'No SEO', 'Broken Links', 'No Analytics'],
-  upwork: ['Vague Scope', 'Unrealistic Budget', 'Missing Timeline', 'Unclear Requirements', 'High Competition'],
-}
 
 const ANALYSIS_STEPS = [
   { label: 'Fetching source', detail: 'Connecting to repository...' },

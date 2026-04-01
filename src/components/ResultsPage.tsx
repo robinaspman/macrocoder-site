@@ -7,7 +7,7 @@ import {
   Sparkles,
   Wrench,
 } from 'lucide-react'
-import { submitReview, type ReviewResult } from '../lib/api'
+import { submitReview, getReviewStatus, type ReviewResult, type ReviewStatus } from '../lib/api'
 import { LoadingOverlay } from './LoadingOverlay'
 
 type InputMode = 'github' | 'website' | 'upwork'
@@ -125,11 +125,11 @@ export function ResultsPage() {
           if (!owner || !repo) {
             throw new Error('Missing repository info')
           }
-          request = { type: 'github', owner, repo }
+          request = { type: 'github', owner, repo, async_mode: true }
         } else if (mode === 'website') {
           const url = searchParams.get('url')
           if (!url) throw new Error('Missing website URL')
-          request = { type: 'website', url }
+          request = { type: 'website', url, async_mode: true }
         } else {
           const text = sessionStorage.getItem('mc_upwork_text')
           if (!text) {
@@ -137,11 +137,39 @@ export function ResultsPage() {
             return
           }
           sessionStorage.removeItem('mc_upwork_text')
-          request = { type: 'upwork', description: text }
+          request = { type: 'upwork', description: text, async_mode: true }
         }
 
         const data = await submitReview(request)
-        setResult(data)
+
+        // If async mode returned an enqueued response, poll for status
+        if ('id' in data && data.status === 'pending') {
+          const analysisId = data.id
+          let status: ReviewStatus | null = null
+
+          while (!status || (status.status !== 'complete' && status.status !== 'failed')) {
+            await new Promise((r) => setTimeout(r, 2000))
+            status = await getReviewStatus(analysisId)
+
+            if (status.status === 'pending') setProgress(20)
+            else if (status.status === 'fetching') setProgress(40)
+            else if (status.status === 'analyzing') setProgress(60)
+          }
+
+          if (status.status === 'failed') {
+            throw new Error(status.error_message || 'Analysis failed')
+          }
+
+          if (status.status === 'complete' && status.result) {
+            setResult(status.result)
+          } else {
+            throw new Error('Analysis completed but no result returned')
+          }
+        } else {
+          // Sync mode: result returned immediately
+          setResult(data as ReviewResult)
+        }
+
         setStepResults([
           { passed: true, detail: 'Source fetched successfully' },
           { passed: true, detail: 'Structure mapped' },

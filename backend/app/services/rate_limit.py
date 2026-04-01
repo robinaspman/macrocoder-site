@@ -1,13 +1,10 @@
 import time
 import hashlib
 import json
+import redis
 from datetime import datetime, timezone
 from typing import Any
 from app.core.config import settings
-
-# In-memory rate limit storage (use Redis in production)
-_request_counts: dict[str, list[float]] = {}
-_session_caps: dict[str, int] = {}
 
 MAX_REQUESTS_PER_MINUTE = settings.RATE_LIMIT_PER_MINUTE
 MAX_REVIEWS_PER_SESSION = 5
@@ -15,40 +12,65 @@ MAX_TOKENS_PER_REVIEW = 4096
 MAX_TURNS_PER_REVIEW = 3
 COOLDOWN_SECONDS = 30
 
-_last_request: dict[str, float] = {}
+_client: redis.Redis | None = None
+
+
+def _get_redis() -> redis.Redis:
+    global _client
+    if _client is None:
+        _client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    return _client
 
 
 def check_rate_limit(session_id: str) -> None:
-    """Check per-session rate limit. Raises ValueError if exceeded."""
+    """Check per-session rate limit using Redis. Raises ValueError if exceeded."""
+    try:
+        r = _get_redis()
+    except Exception:
+        return
+
     now = time.time()
+    key = f"rl:{session_id}"
+    cooldown_key = f"rl_cooldown:{session_id}"
 
-    # Clean old entries
-    if session_id in _request_counts:
-        _request_counts[session_id] = [
-            t for t in _request_counts[session_id] if now - t < 60
-        ]
-    else:
-        _request_counts[session_id] = []
+    pipe = r.pipeline()
+    pipe.zremrangebyscore(key, 0, now - 60)
+    pipe.zcard(key)
+    pipe.ttl(cooldown_key)
+    results = pipe.execute()
 
-    if len(_request_counts[session_id]) >= MAX_REQUESTS_PER_MINUTE:
+    request_count = results[1]
+    cooldown_ttl = results[2]
+
+    if cooldown_ttl and cooldown_ttl > 0:
+        raise ValueError(f"Please wait {cooldown_ttl}s before next review.")
+
+    if request_count >= MAX_REQUESTS_PER_MINUTE:
         raise ValueError("Rate limit exceeded. Please wait before trying again.")
 
-    # Check cooldown
-    if session_id in _last_request:
-        elapsed = now - _last_request[session_id]
-        if elapsed < COOLDOWN_SECONDS:
-            raise ValueError(f"Please wait {COOLDOWN_SECONDS - int(elapsed)}s before next review.")
-
-    _request_counts[session_id].append(now)
-    _last_request[session_id] = now
+    pipe = r.pipeline()
+    pipe.zadd(key, {str(now): now})
+    pipe.expire(key, 60)
+    pipe.setex(cooldown_key, COOLDOWN_SECONDS, "1")
+    pipe.execute()
 
 
 def check_session_cap(session_id: str) -> None:
-    """Check per-session review cap."""
-    current = _session_caps.get(session_id, 0)
-    if current >= MAX_REVIEWS_PER_SESSION:
+    """Check per-session review cap using Redis."""
+    try:
+        r = _get_redis()
+    except Exception:
+        return
+
+    key = f"session_cap:{session_id}"
+    current = r.get(key)
+    if current and int(current) >= MAX_REVIEWS_PER_SESSION:
         raise ValueError("Daily review limit reached. Try again tomorrow.")
-    _session_caps[session_id] = current + 1
+
+    pipe = r.pipeline()
+    pipe.incr(key)
+    pipe.expire(key, 86400)
+    pipe.execute()
 
 
 def generate_quote_id(

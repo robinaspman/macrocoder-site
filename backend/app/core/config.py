@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "MacroCoder Agent"
     DEBUG: bool = False
-    SECRET_KEY: str = "change-me-in-production"
+    SECRET_KEY: str
     FRONTEND_URL: str = "http://localhost:5173"
 
     # Database

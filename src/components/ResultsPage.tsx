@@ -1,17 +1,43 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import {
-  ArrowRight,
-  CheckCircle2,
-  CircleDot,
-  Sparkles,
-  Wrench,
-} from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { submitReview, getReviewStatus, type ReviewResult, type ReviewStatus } from '../lib/api'
 import { LoadingOverlay } from './LoadingOverlay'
 
 type InputMode = 'github' | 'website' | 'upwork'
 type Phase = 'loading' | 'done'
+
+interface PathOption {
+  name: string
+  timeline: string
+  price: string
+  includes: string[]
+  ctaText: string
+}
+
+const PATH_OPTIONS: Record<string, PathOption> = {
+  'Lean Fix': {
+    name: 'Lean Fix',
+    timeline: '1–2 days',
+    price: '$350–$700',
+    includes: ['Clearer headline', 'Simplified CTA flow', 'Cleaner page sections'],
+    ctaText: 'Start Lean Fix on Upwork',
+  },
+  'Conversion Rebuild': {
+    name: 'Conversion Rebuild',
+    timeline: '2–4 days',
+    price: '$800–$1,500',
+    includes: ['Clearer page structure', 'Sharper headline and messaging', 'Stronger CTA flow', 'Better trust and conversion signals'],
+    ctaText: 'Start Phase 1 on Upwork',
+  },
+  'Full Premium Pass': {
+    name: 'Full Premium Pass',
+    timeline: '5–8 days',
+    price: '$1,800–$3,500',
+    includes: ['Full redesign with modern styling', 'Complete polish and refinement', 'Enhanced trust and conversion flow', 'Fully responsive across all devices'],
+    ctaText: 'Start Premium Pass on Upwork',
+  },
+}
 
 const FALLBACK_RESULTS: Record<InputMode, ReviewResult> = {
   github: {
@@ -25,7 +51,7 @@ const FALLBACK_RESULTS: Record<InputMode, ReviewResult> = {
     categories: ['Security', 'Code Quality', 'Missing Tests', 'No CI/CD', 'Outdated Deps'],
   },
   website: {
-    verdict: "The site has strong visual potential, but the messaging and CTA structure should be simplified to increase conversion.",
+    verdict: "The visuals are solid, but the messaging is too broad and the CTA flow is not focused enough to convert well.",
     fixes: [
       "Sharpen the headline so visitors understand the offer immediately.",
       "Remove filler sections and replace them with concrete value points.",
@@ -56,6 +82,7 @@ export function ResultsPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [result, setResult] = useState<ReviewResult | null>(null)
   const [stepResults, setStepResults] = useState<{ passed: boolean; detail?: string; findings?: string[] }[]>([])
+  const [selectedPath, setSelectedPath] = useState<string>('Conversion Rebuild')
 
   const sourceUrl = (() => {
     if (mode === 'github') {
@@ -191,35 +218,63 @@ export function ResultsPage() {
         window.clearInterval(interval)
         setResult(FALLBACK_RESULTS[mode])
         setStepResults([
-          { passed: true, detail: 'Source fetched successfully', findings: [
+          { passed: true, detail: mode === 'website' ? 'Website scanned successfully' : mode === 'upwork' ? 'Job post fetched' : 'Source fetched successfully', findings: mode === 'github' ? [
             'Repository: onewithdev/gsd',
             'Branch: main',
             'Total files: 47',
+          ] : mode === 'website' ? [
+            'Source: www.website.se',
+            'Pages scanned: 12',
+            'Key sections found: 8',
+            'Technologies detected: HTML/CSS/JS',
+          ] : [
+            'Job post fetched successfully',
+            'Client history reviewed',
+            'Budget range: $500–$2,000',
           ]},
-          { passed: true, detail: 'Structure mapped', findings: [
+          { passed: true, detail: mode === 'website' ? 'Content structure mapped' : 'Structure mapped', findings: mode === 'website' ? [
+            'Home page: Hero + features + CTA',
+            'About page: Team + mission',
+            'Contact page: Form + info',
+            'Navigation: 4 main pages',
+          ] : [
             'Frameworks: React, Next.js, Tailwind CSS',
             'Languages: TypeScript (89%), JavaScript (11%)',
             'Package manager: npm',
           ]},
-          { passed: true, detail: 'Code analyzed', findings: [
+          { passed: true, detail: mode === 'website' ? 'Messaging analyzed' : 'Code analyzed', findings: mode === 'website' ? [
+            'Headline: Clear value proposition',
+            'Subheadline: Secondary benefits',
+            'CTA: Primary conversion point present',
+          ] : [
             'Frontend detected: React components',
             'Backend detected: API routes',
             'Auth indicators: next-auth',
           ]},
-          { passed: false, detail: '2 issues found', findings: [
+          { passed: false, detail: mode === 'website' ? '2 issues found' : '2 issues found', findings: mode === 'website' ? [
+            '⚠ Trust signals could be stronger',
+            '⚠ Mobile navigation needs improvement',
+          ] : [
             '⚠ Missing test coverage — no test files detected',
             '⚠ No CI/CD pipeline found',
           ]},
-          { passed: true, detail: 'No vulnerabilities', findings: [
+          { passed: true, detail: mode === 'website' ? 'Trust signals reviewed' : 'No vulnerabilities', findings: mode === 'website' ? [
+            'Contact info present',
+            'No testimonials section',
+            'Missing social proof',
+          ] : [
             'No known vulnerable dependencies detected',
             'Environment files properly configured',
           ]},
-          { passed: false, detail: 'Optimization needed', findings: [
+          { passed: false, detail: mode === 'website' ? 'Performance needs work' : 'Optimization needed', findings: mode === 'website' ? [
+            '⚠ Images not optimized',
+            '⚠ Some render-blocking scripts',
+          ] : [
             '⚠ Bundle size could be reduced',
             '⚠ Missing performance optimizations',
           ]},
           { passed: true, detail: 'Report generated', findings: [
-            'Analysis complete — 8 checks passed',
+            'Analysis ready — 8 checks passed',
             '2 recommendations generated',
           ]},
           { passed: true, detail: 'Review complete', findings: [
@@ -237,10 +292,6 @@ export function ResultsPage() {
 
     runReview()
   }, [mode, navigate, searchParams])
-
-  function handleReset() {
-    navigate('/')
-  }
 
   return (
     <div className="min-h-screen w-full bg-[#050403] text-white relative overflow-hidden [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
@@ -277,115 +328,159 @@ export function ResultsPage() {
           />
 
           {/* Results section - appears below when done */}
-          {phase === 'done' && result && (
-            <div className="w-full max-w-[980px] mt-12">
-              <div className="rounded-2xl border border-[#24170e] bg-[#110c09]/96 p-8 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-                <div className="mb-4 flex items-center justify-between text-[15px] text-[#9e8468]">
-                  <div className="flex items-center gap-3 text-[#ece7e2]">
-                    <CheckCircle2 className="h-5 w-5 text-[#1fc164]" strokeWidth={2.2} />
-                    <span className="text-[18px] font-medium">Analysis Complete!</span>
-                  </div>
-                  <span>100%</span>
-                </div>
+          {phase === 'done' && result && (() => {
+            const path = PATH_OPTIONS[selectedPath] || PATH_OPTIONS['Conversion Rebuild']
+            
+            const criticalFindings = mode === 'website' ? [
+              'Messaging too broad — unclear value proposition',
+              'CTA flow too weak — no clear conversion path',
+              'Trust signals incomplete — limited social proof',
+              'Mobile navigation needs improvement',
+              'Performance optimization needed',
+            ] : result.fixes
 
-                <div className="mb-8 h-2.5 w-full overflow-hidden rounded-full bg-[#2a1a10]">
-                  <div className="h-full w-full rounded-full bg-[#e59a1d]" />
-                </div>
+            const buildSequence = mode === 'website' ? [
+              { step: 'Step 1', action: 'Refactor the landing structure and tighten the headline/CTA hierarchy.', blurred: null },
+              { step: 'Step 2', action: 'Replace the current content flow with a clearer conversion-first layout.', blurred: 'and connect it to a scalable data structure' },
+              { step: 'Step 3', action: 'Move tracking and key funnel events into a proper analytics layer.', blurred: null },
+              { step: 'Step 4', action: 'Implement', blurred: 'the recommended architecture for responsiveness, trust flow, and long-term maintainability' },
+            ] : [
+              { step: 'Step 1', action: 'Clean up the current codebase and refactor key components.', blurred: null },
+              { step: 'Step 2', action: 'Implement', blurred: 'the recommended state management pattern' },
+              { step: 'Step 3', action: 'Set up', blurred: 'the optimized CI/CD pipeline' },
+              { step: 'Step 4', action: 'Add comprehensive test coverage and monitoring.', blurred: null },
+            ]
 
-                <div className="grid gap-6">
-                  <article className="rounded-2xl border border-[#5a3b14]/40 bg-[#1a120b] p-7">
-                    <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25180c] text-[#e59a1d]">
-                        <CheckCircle2 className="h-5 w-5" strokeWidth={2} />
-                      </div>
-                      <div>
-                        <h2 className="text-[28px] font-semibold tracking-[-0.03em] text-[#ece7e2]">
-                          Quick Verdict
-                        </h2>
-                        <p className="text-[15px] text-[#8e7963]">The highest-signal takeaway, without the fluff.</p>
-                      </div>
-                    </div>
-                    <p className="max-w-[800px] text-[20px] leading-9 text-[#cbbfb2]">
-                      {result.verdict}
-                    </p>
-                  </article>
-
-                  <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                    <article className="rounded-2xl border border-[#14452c]/60 bg-[#07160f] p-7">
-                      <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0d2117] text-[#1fc164]">
-                          <Wrench className="h-5 w-5" strokeWidth={2} />
-                        </div>
-                        <div>
-                          <h3 className="text-[26px] font-semibold tracking-[-0.03em] text-[#ece7e2]">
-                            Top 3 Fixes
-                          </h3>
-                          <p className="text-[15px] text-[#6f9a84]">What I would actually change first.</p>
-                        </div>
-                      </div>
-
-                      <ul className="space-y-4">
-                        {result.fixes.map((item) => (
-                          <li key={item} className="flex items-start gap-3 text-[20px] leading-9 text-[#c9d7ce]">
-                            <CircleDot className="mt-1 h-5 w-5 shrink-0 text-[#1fc164]" strokeWidth={2.2} />
-                            <span>{item}</span>
+            return (
+            <div className="w-full max-w-[1400px] mt-8">
+              <div className="relative rounded-xl border border-[#3d2817] bg-[#110c09]/96 p-6 overflow-hidden">
+                {/* Subtle ambient glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#e59a1d]/5 via-transparent to-transparent pointer-events-none" />
+                
+                <div className="relative grid grid-cols-1 lg:grid-cols-5 gap-6">
+                  {/* Left: Critical Findings + Build Sequence (3 cols) */}
+                  <div className="lg:col-span-3 space-y-6">
+                    {/* Critical Findings */}
+                    <div className="relative">
+                      <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#ef4444] to-transparent" />
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#ef4444] mb-3 font-semibold">
+                        Critical Findings
+                      </p>
+                      <ul className="space-y-2">
+                        {criticalFindings.slice(0, 5).map((finding, i) => (
+                          <li key={i} className="flex items-start gap-2.5 text-[13px] text-[#c9943e]">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ef4444] shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                            <span className="font-medium">{finding}</span>
                           </li>
                         ))}
                       </ul>
-                    </article>
+                    </div>
 
-                    <article className="rounded-2xl border border-[#5a3b14]/40 bg-[#1a120b] p-7">
-                      <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25180c] text-[#e59a1d]">
-                          <Sparkles className="h-5 w-5" strokeWidth={2} />
-                        </div>
-                        <div>
-                          <h3 className="text-[26px] font-semibold tracking-[-0.03em] text-[#ece7e2]">
-                            Build Direction
-                          </h3>
-                          <p className="text-[15px] text-[#8e7963]">The cleanest next path.</p>
-                        </div>
+                    <div className="h-px bg-[#1c110a]" />
+
+                    {/* Recommended Build Sequence */}
+                    <div className="relative">
+                      <div className="absolute left-[5px] top-2 bottom-4 w-px bg-gradient-to-b from-[#e59a1d] to-[#5d3b11]" />
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#e59a1d] mb-4 font-semibold">
+                        Recommended Build Sequence
+                      </p>
+                      <div className="space-y-4">
+                        {buildSequence.map((item, i) => (
+                          <div key={i} className="relative pl-8">
+                            <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-[#1c110a] border-2 border-[#e59a1d]" />
+                            <div className="text-[11px] font-bold text-[#e59a1d] mb-1">{item.step}</div>
+                            <div className="text-[13px] leading-5 text-[#c9943e]">
+                              {item.action}
+                              {item.blurred && (
+                                <span className="mx-1 px-1.5 py-0.5 rounded bg-[#1c120a] text-[#8b673f] blur-[1.5px] opacity-60 select-none border border-[#2a1a10]">
+                                  {item.blurred}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                    </div>
 
-                      <p className="text-[20px] leading-9 text-[#cbbfb2]">{result.direction}</p>
-                    </article>
+                    <div className="h-px bg-[#1c110a]" />
+
+                    {/* Verdict context */}
+                    <p className="text-[13px] leading-5 text-[#7a6a5a]">
+                      {result.verdict}
+                    </p>
                   </div>
 
-                  <article className="rounded-2xl border border-[#5a3b14]/40 bg-[#1a120b] px-8 py-10 text-center">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#25180c] text-[#e59a1d]">
-                      <Sparkles className="h-6 w-6" strokeWidth={2} />
+                  {/* Right: Metrics + Options (2 cols) */}
+                  <div className="lg:col-span-2 space-y-5 lg:border-l lg:border-[#1c110a] lg:pl-6">
+                    {/* 4 Metric Boxes */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-[#0a0806] border border-[#1c110a] p-3">
+                        <p className="text-[11px] text-[#8b673f] mb-1">Fit</p>
+                        <span className="inline-flex items-center rounded-full bg-[#1fc164]/10 border border-[#1fc164]/20 px-2 py-0.5 text-[13px] font-medium text-[#1fc164]">
+                          Strong Fit
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-[#0a0806] border border-[#1c110a] p-3">
+                        <p className="text-[11px] text-[#8b673f] mb-1">Complexity</p>
+                        <span className="inline-flex items-center rounded-full bg-[#e59a1d]/10 border border-[#e59a1d]/20 px-2 py-0.5 text-[13px] font-medium text-[#e59a1d]">
+                          Medium
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-[#0a0806] border border-[#1c110a] p-3">
+                        <p className="text-[11px] text-[#8b673f] mb-1">Timeline</p>
+                        <p className="text-[15px] text-[#ece7e2] font-medium">{path.timeline}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#0a0806] border border-[#1c110a] p-3">
+                        <p className="text-[11px] text-[#8b673f] mb-1">Budget</p>
+                        <span className="inline-flex items-center rounded-full bg-[#e59a1d]/10 border border-[#e59a1d]/20 px-2 py-0.5 text-[13px] font-medium text-[#e59a1d]">
+                          {path.price}
+                        </span>
+                      </div>
                     </div>
-                    <h3 className="text-[34px] font-semibold tracking-[-0.03em] text-[#ece7e2]">
-                      Want This Improved Properly?
-                    </h3>
-                    <p className="mx-auto mt-4 max-w-[720px] text-[20px] leading-9 text-[#a9957f]">
-                      I can turn this into a tighter, higher-converting experience and build it
-                      cleanly for you. Hire me through Upwork and I&apos;ll implement the important parts first.
-                    </p>
 
-                    <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                    {/* Option Pills */}
+                    <div>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(PATH_OPTIONS).map((name) => {
+                          const isSelected = name === selectedPath
+                          return (
+                            <button
+                              key={name}
+                              onClick={() => setSelectedPath(name)}
+                              className={`px-3 py-1.5 rounded-lg border text-[13px] transition-all ${
+                                isSelected
+                                  ? 'border-[#e59a1d] bg-[#e59a1d]/15 text-[#e59a1d]'
+                                  : 'border-[#2a1a10] bg-[#0a0806] text-[#8b673f] hover:border-[#3d2515]'
+                              }`}
+                            >
+                              {name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div>
                       <a
                         href="https://www.upwork.com/"
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-[56px] items-center justify-center gap-3 rounded-xl bg-[#e59a1d] px-8 text-[18px] font-medium text-[#1b1106] transition hover:brightness-110 active:scale-[0.995]"
+                        className="flex h-[48px] items-center justify-center gap-2 rounded-xl bg-[#e59a1d] text-[15px] font-medium text-[#1b1106] transition hover:brightness-110 px-6"
                       >
-                        Let&apos;s Work Together
-                        <ArrowRight className="h-5 w-5" strokeWidth={2.2} />
+                        {path.ctaText}
+                        <ArrowRight className="h-4 w-4" strokeWidth={2} />
                       </a>
-
-                      <button
-                        onClick={handleReset}
-                        className="inline-flex h-[56px] items-center justify-center rounded-xl border border-[#3e2b18] px-8 text-[18px] text-[#b69a7a] transition hover:bg-[#16100c] hover:text-[#efe7dd]"
-                      >
-                        Run Another Review
-                      </button>
+                      <p className="text-[11px] text-[#5f4c3b] text-center mt-2">
+                        Final scope and pricing may adjust if requirements change.
+                      </p>
                     </div>
-                  </article>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+            )
+          })()}
         </section>
       </main>
     </div>

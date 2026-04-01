@@ -52,7 +52,7 @@ export function ResultsPage() {
   const [progress, setProgress] = useState(0)
   const [stepIndex, setStepIndex] = useState(0)
   const [result, setResult] = useState<ReviewResult | null>(null)
-  const [stepResults, setStepResults] = useState<{ passed: boolean; detail?: string }[]>([])
+  const [stepResults, setStepResults] = useState<{ passed: boolean; detail?: string; findings?: string[] }[]>([])
 
   const sourceUrl = (() => {
     if (mode === 'github') {
@@ -239,6 +239,9 @@ export function ResultsPage() {
             isComplete={phase === 'done'}
             stepResults={stepResults}
             projectSummary={projectSummary}
+            owner={mode === 'github' ? (searchParams.get('owner') || undefined) : undefined}
+            repo={mode === 'github' ? (searchParams.get('repo') || undefined) : undefined}
+            url={mode === 'website' ? (searchParams.get('url') || undefined) : undefined}
           />
 
           {/* Results section - appears below when done */}

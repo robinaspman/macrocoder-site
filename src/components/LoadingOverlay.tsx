@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Loader2, CheckCircle2, XCircle, Sparkles, Globe, Github, Briefcase, Calendar, User, FileText, Tag, ChevronDown } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Loader2, CheckCircle2, XCircle, Sparkles, Globe, Github, Briefcase, Calendar, User, FileText, Tag, ChevronDown, FileCode, Folder, ChevronRight } from 'lucide-react'
 
 type InputMode = 'github' | 'website' | 'upwork'
 
@@ -31,6 +31,13 @@ interface ProjectSummary {
   tags?: string[]
 }
 
+interface RepoFile {
+  path: string
+  name: string
+  content?: string
+  loading?: boolean
+}
+
 interface LoadingOverlayProps {
   mode: InputMode
   sourceUrl: string
@@ -39,11 +46,241 @@ interface LoadingOverlayProps {
   isComplete: boolean
   stepResults?: StepResult[]
   projectSummary?: ProjectSummary
+  owner?: string
+  repo?: string
+  url?: string
 }
 
-export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplete, stepResults, projectSummary }: LoadingOverlayProps) {
+async function fetchGitHubFiles(owner: string, repo: string, token?: string, branch = 'main'): Promise<RepoFile[]> {
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+  const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers })
+  if (!treeRes.ok) throw new Error('Failed to fetch repo tree')
+  const treeData = await treeRes.json()
+
+  const textExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.json', '.md', '.yml', '.yaml', '.toml', '.css', '.html', '.sql', '.sh', '.env', '.gitignore', '.prettierrc', '.eslintrc']
+  const skipDirs = ['node_modules', '.git', 'dist', 'build', '.next', '.cache', '__pycache__', '.venv', 'coverage', '.turbo']
+
+  const files: RepoFile[] = []
+  for (const item of (treeData.tree || [])) {
+    if (item.type !== 'blob') continue
+    const path = item.path as string
+    if (skipDirs.some(d => path.startsWith(d + '/') || path.includes('/' + d + '/'))) continue
+    const ext = '.' + path.split('.').pop()
+    if (!textExtensions.includes(ext)) continue
+    if (files.length >= 30) break
+    files.push({ path, name: path.split('/').pop() || path })
+  }
+  return files
+}
+
+async function fetchFileContent(owner: string, repo: string, path: string, token?: string, branch = 'main'): Promise<string> {
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+  const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`, { headers })
+  if (!res.ok) return 'Unable to load file content'
+  const text = await res.text()
+  return text.length > 2000 ? text.slice(0, 2000) + '\n\n... (truncated)' : text
+}
+
+function FileList({ files, onFileClick, expandedFile }: { files: RepoFile[], onFileClick: (file: RepoFile) => void, expandedFile: string | null }) {
+  const [folderExpanded, setFolderExpanded] = useState<Set<string>>(new Set())
+
+  const grouped: Record<string, RepoFile[]> = {}
+  for (const f of files) {
+    const dir = f.path.includes('/') ? f.path.split('/').slice(0, -1).join('/') : '.'
+    if (!grouped[dir]) grouped[dir] = []
+    grouped[dir].push(f)
+  }
+
+  return (
+    <div className="space-y-1">
+      {Object.entries(grouped).map(([dir, dirFiles]) => {
+        const isRoot = dir === '.'
+        const isFolderExpanded = folderExpanded.has(dir)
+
+        return (
+          <div key={dir}>
+            {!isRoot && (
+              <button
+                onClick={() => setFolderExpanded(prev => {
+                  const next = new Set(prev)
+                  if (next.has(dir)) next.delete(dir)
+                  else next.add(dir)
+                  return next
+                })}
+                className="w-full flex items-center gap-2 py-1.5 px-2 text-left text-[12px] text-[#8b673f] hover:bg-[#1c120a] rounded transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${isFolderExpanded ? 'rotate-90' : ''}`} />
+                <Folder className="h-3.5 w-3.5" />
+                <span className="font-mono">{dir}</span>
+              </button>
+            )}
+            {(isRoot || isFolderExpanded) && (
+              <div className={isRoot ? '' : 'ml-4'}>
+                {dirFiles.map(file => (
+                  <button
+                    key={file.path}
+                    onClick={() => onFileClick(file)}
+                    className="w-full flex items-center gap-2 py-1.5 px-2 text-left text-[12px] text-[#a47a52] hover:bg-[#1c120a] rounded transition-colors"
+                  >
+                    <FileCode className="h-3.5 w-3.5 text-[#6d5235] flex-shrink-0" />
+                    <span className="font-mono truncate">{file.name}</span>
+                    {expandedFile === file.path && (
+                      <span className="ml-auto text-[10px] text-[#e59a1d]">open</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function FileContent({ file }: { file: RepoFile }) {
+  return (
+    <div className="mt-3 bg-[#090605] rounded-lg border border-[#1c110a] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1c110a]">
+        <FileCode className="h-3.5 w-3.5 text-[#e59a1d]" />
+        <span className="text-[11px] text-[#ece7e2] font-mono truncate">{file.path}</span>
+      </div>
+      <div className="p-3 max-h-[200px] overflow-auto">
+        {file.loading ? (
+          <div className="flex items-center gap-2 text-[#8e7963] text-[11px]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading...
+          </div>
+        ) : (
+          <pre className="text-[11px] leading-4 text-[#a47a52] whitespace-pre-wrap break-all font-mono">
+            {file.content || 'No content available'}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplete, stepResults, projectSummary, owner, repo }: LoadingOverlayProps) {
   const SourceIcon = mode === 'github' ? Github : mode === 'website' ? Globe : Briefcase
-  const [expandedStep, setExpandedStep] = useState<number | null>(null)
+  const [expandedStep, setExpandedStep] = useState<number | null>(0)
+  const [repoFiles, setRepoFiles] = useState<RepoFile[]>([])
+  const [expandedFile, setExpandedFile] = useState<string | null>(null)
+  const [filesLoading, setFilesLoading] = useState(false)
+  const githubToken = typeof window !== 'undefined' ? sessionStorage.getItem('mc_github_token') : null
+  const ghAccessToken = typeof window !== 'undefined' && githubToken ? (() => {
+    try {
+      const payload = JSON.parse(atob(githubToken.split('.')[1]))
+      return payload.github_token || null
+    } catch { return null }
+  })() : null
+
+  useEffect(() => {
+    if (mode === 'github' && owner && repo && isComplete) {
+      setFilesLoading(true)
+      fetchGitHubFiles(owner, repo, ghAccessToken || undefined)
+        .then(files => setRepoFiles(files))
+        .catch(() => setRepoFiles([]))
+        .finally(() => setFilesLoading(false))
+    }
+  }, [mode, owner, repo, isComplete])
+
+  const handleFileClick = async (file: RepoFile) => {
+    if (expandedFile === file.path) {
+      setExpandedFile(null)
+      return
+    }
+    setExpandedFile(file.path)
+    if (!file.content && mode === 'github' && owner && repo) {
+      setRepoFiles(prev => prev.map(f => f.path === file.path ? { ...f, loading: true } : f))
+      const content = await fetchFileContent(owner, repo, file.path, ghAccessToken || undefined)
+      setRepoFiles(prev => prev.map(f => f.path === file.path ? { ...f, content, loading: false } : f))
+    }
+  }
+
+  const renderStepFindings = (index: number, stepResult: StepResult) => {
+    const findings = stepResult.findings || []
+    const isGitHub = mode === 'github' && repoFiles.length > 0
+
+    return (
+      <div className="px-4 pb-4">
+        <div className="bg-[#090605] rounded-lg border border-[#1c110a] p-4 space-y-2">
+          {findings.map((finding: string, i: number) => (
+            <div key={i} className={`flex items-start gap-3 py-2 ${i > 0 ? 'border-t border-[#1c110a]' : ''}`}>
+              <div className="mt-1 flex-shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#1fc164]" strokeWidth={2.5} />
+              </div>
+              <p className="text-[13px] leading-5 text-[#a47a52]">
+                {finding}
+              </p>
+            </div>
+          ))}
+
+          {isGitHub && index === 0 && (
+            <>
+              {findings.length > 0 && <div className="border-t border-[#1c110a] my-2" />}
+              <div className="flex items-center gap-2 mb-2">
+                <Github className="h-3.5 w-3.5 text-[#e59a1d]" />
+                <span className="text-[11px] uppercase tracking-wider text-[#6d5235]">Downloaded Files</span>
+                {filesLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8e7963]" />}
+              </div>
+              <FileList files={repoFiles} onFileClick={handleFileClick} expandedFile={expandedFile} />
+              {expandedFile && (
+                <FileContent file={repoFiles.find(f => f.path === expandedFile)!} />
+              )}
+            </>
+          )}
+
+          {isGitHub && index === 1 && (
+            <>
+              {findings.length > 0 && <div className="border-t border-[#1c110a] my-2" />}
+              <div className="flex items-center gap-2 mb-2">
+                <Folder className="h-3.5 w-3.5 text-[#e59a1d]" />
+                <span className="text-[11px] uppercase tracking-wider text-[#6d5235]">File Structure</span>
+              </div>
+              <div className="space-y-1">
+                {repoFiles.slice(0, 20).map(f => (
+                  <div key={f.path} className="flex items-center gap-2 py-1 text-[12px] text-[#a47a52] font-mono">
+                    <FileCode className="h-3 w-3 text-[#6d5235] flex-shrink-0" />
+                    <span className="truncate">{f.path}</span>
+                  </div>
+                ))}
+                {repoFiles.length > 20 && (
+                  <div className="text-[11px] text-[#6d5235] py-1">...and {repoFiles.length - 20} more files</div>
+                )}
+              </div>
+            </>
+          )}
+
+          {isGitHub && index === 2 && (
+            <>
+              {findings.length > 0 && <div className="border-t border-[#1c110a] my-2" />}
+              <div className="flex items-center gap-2 mb-2">
+                <FileCode className="h-3.5 w-3.5 text-[#e59a1d]" />
+                <span className="text-[11px] uppercase tracking-wider text-[#6d5235]">File Content Preview</span>
+              </div>
+              <div className="space-y-2">
+                {repoFiles.slice(0, 3).map(f => (
+                  <button
+                    key={f.path}
+                    onClick={() => handleFileClick(f)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center gap-2 py-1.5 text-[12px] text-[#a47a52] font-mono hover:bg-[#1c120a] rounded px-2 transition-colors">
+                      <FileCode className="h-3 w-3 text-[#6d5235] flex-shrink-0" />
+                      <span className="truncate">{f.path}</span>
+                      {expandedFile === f.path && <span className="ml-auto text-[10px] text-[#e59a1d]">open</span>}
+                    </div>
+                    {expandedFile === f.path && <FileContent file={repoFiles.find(r => r.path === f.path)!} />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-[1400px] grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -66,7 +303,6 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
           )}
         </div>
 
-        {/* Content area - fills remaining height, scrolls if needed */}
         <div className="flex-1 overflow-y-auto p-8">
           {isComplete && projectSummary ? (
             <div className="space-y-5">
@@ -162,7 +398,6 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
           )}
         </div>
 
-        {/* Progress bar - fixed at bottom, never moves */}
         <div className="px-8 pb-8 pt-2 border-t border-[#1c110a] flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] text-[#8e7963]">Analysis</span>
@@ -207,6 +442,7 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
               const hasResult = isComplete && stepResult !== undefined
               const isExpanded = expandedStep === index
               const hasFindings = hasResult && stepResult?.findings && stepResult.findings.length > 0
+              const hasFiles = mode === 'github' && repoFiles.length > 0 && (index === 0 || index === 1 || index === 2)
 
               return (
                 <div
@@ -219,9 +455,9 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
                 >
                   <button
                     onClick={() => {
-                      if (hasFindings) setExpandedStep(isExpanded ? null : index)
+                      if (hasFindings || hasFiles) setExpandedStep(isExpanded ? null : index)
                     }}
-                    className={`w-full flex items-start gap-4 py-3 px-4 text-left ${hasFindings ? 'cursor-pointer' : 'cursor-default'}`}
+                    className={`w-full flex items-start gap-4 py-3 px-4 text-left ${hasFindings || hasFiles ? 'cursor-pointer' : 'cursor-default'}`}
                   >
                     <div className={`mt-0.5 flex-shrink-0 ${
                       hasResult && stepResult?.passed === false ? 'text-[#ef4444]' :
@@ -249,7 +485,7 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
                         }`}>
                           {step.label}
                         </p>
-                        {hasFindings && (
+                        {(hasFindings || hasFiles) && (
                           <ChevronDown className={`h-4 w-4 text-[#6d5235] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                         )}
                       </div>
@@ -268,23 +504,7 @@ export function LoadingOverlay({ mode, sourceUrl, progress, stepIndex, isComplet
                     </div>
                   </button>
 
-                  {/* Expandable findings */}
-                  {hasFindings && isExpanded && (
-                    <div className="px-4 pb-4">
-                      <div className="bg-[#090605] rounded-lg border border-[#1c110a] p-4 space-y-2">
-                        {stepResult.findings!.map((finding: string, i: number) => (
-                          <div key={i} className={`flex items-start gap-3 py-2 ${i > 0 ? 'border-t border-[#1c110a]' : ''}`}>
-                            <div className="mt-1 flex-shrink-0">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-[#1fc164]" strokeWidth={2.5} />
-                            </div>
-                            <p className="text-[13px] leading-5 text-[#a47a52]">
-                              {finding}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {isExpanded && (hasFindings || hasFiles) && renderStepFindings(index, stepResult!)}
                 </div>
               )
             })}

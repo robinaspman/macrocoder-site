@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "MacroCoder Agent"
     DEBUG: bool = False
     SECRET_KEY: str = "change-me-in-production"
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/macrocoder"
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_TOKEN: str = ""
-    GITHUB_REDIRECT_URI: str = "http://localhost:3000/api/auth/callback"
+    GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/auth/callback"
 
     # Anthropic
     ANTHROPIC_API_KEY: str = ""

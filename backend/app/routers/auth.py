@@ -1,10 +1,7 @@
 import httpx
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
-from app.core.database import get_db
-from app.services.auth import create_access_token, get_or_create_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -26,9 +23,8 @@ async def login():
 async def callback(
     code: str = Query(...),
     state: str = Query(...),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Handle GitHub OAuth callback, create user, return JWT."""
+    """Handle GitHub OAuth callback, return JWT to frontend."""
     # Exchange code for token
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -44,7 +40,7 @@ async def callback(
         token_data = token_resp.json()
         access_token = token_data.get("access_token")
         if not access_token:
-            raise HTTPException(400, "GitHub OAuth failed")
+            raise HTTPException(400, f"GitHub OAuth failed: {token_data}")
 
         # Fetch user info
         user_resp = await client.get(
@@ -53,18 +49,14 @@ async def callback(
         )
         github_user = user_resp.json()
 
-    # Create or update user
-    user = await get_or_create_user(
-        session=db,
-        github_id=github_user["id"],
-        username=github_user["login"],
-        email=github_user.get("email"),
-        avatar_url=github_user.get("avatar_url"),
-        access_token=access_token,
-    )
-
-    # Generate JWT
-    jwt_token = create_access_token(user.id)
+    # Generate a simple JWT-like token containing the GitHub access token
+    import uuid
+    from datetime import datetime, timezone, timedelta
+    from jose import jwt
+    user_id = str(uuid.uuid4())
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    payload = {"sub": user_id, "exp": expire, "github_token": access_token, "username": github_user.get("login")}
+    jwt_token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
     # Redirect to frontend with token
-    return RedirectResponse(f"http://localhost:3000/?token={jwt_token}")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/?token={jwt_token}")

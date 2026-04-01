@@ -1,16 +1,19 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
   Briefcase,
+  CheckCircle2,
   Github,
   Globe,
+  Layers,
+  Loader2,
   Sparkles,
   AlertCircle,
   ChevronDown,
 } from 'lucide-react'
 
-type InputMode = 'github' | 'website' | 'upwork'
+type InputMode = 'github' | 'website' | 'upwork' | 'multiple'
 
 const INPUT_MODES: Record<InputMode, { label: string; placeholder: string; helper: string; icon: typeof Github; prefix: string }> = {
   github: {
@@ -34,20 +37,68 @@ const INPUT_MODES: Record<InputMode, { label: string; placeholder: string; helpe
     icon: Briefcase,
     prefix: '⤴',
   },
+  multiple: {
+    label: 'Multiple',
+    placeholder: '',
+    helper: 'Provide your GitHub profile, website, and Upwork link for a comprehensive review.',
+    icon: Layers,
+    prefix: '◆',
+  },
 }
 
 export function HomePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [mode, setMode] = useState<InputMode>('github')
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [githubToken, setGithubToken] = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authStep, setAuthStep] = useState<'pending' | 'authorizing' | 'done'>('pending')
+
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      setGithubToken(token)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [searchParams])
 
   const currentMode = useMemo(() => INPUT_MODES[mode], [mode])
+
+  function handleGitHubLogin() {
+    setShowAuthModal(true)
+    setAuthStep('pending')
+  }
+
+  function handleAuthorize() {
+    setAuthStep('authorizing')
+    setTimeout(() => {
+      const mockGithubToken = 'ghp_demo_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+      const mockPayload = {
+        sub: 'demo-user-' + Date.now(),
+        exp: Math.floor(Date.now() / 1000) + 86400 * 7,
+        github_token: mockGithubToken,
+        username: 'demo-user',
+      }
+      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+      const payload = btoa(JSON.stringify(mockPayload))
+      const mockJwt = `${header}.${payload}.demo-signature`
+
+      setGithubToken(mockJwt)
+      setAuthStep('done')
+      setTimeout(() => setShowAuthModal(false), 800)
+    }, 1200)
+  }
 
   function handleAnalyze(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!input.trim()) return
+
+    if (githubToken) {
+      sessionStorage.setItem('mc_github_token', githubToken)
+    }
 
     const githubMatch = input.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/)
     if (githubMatch) {
@@ -111,7 +162,7 @@ export function HomePage() {
           </p>
 
           <div className="mt-10 w-full max-w-[740px] overflow-hidden rounded-2xl border border-[#2b1a10] bg-[#120c0a]/95 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-            <div className="grid grid-cols-3 border-b border-[#2b1a10]">
+            <div className="grid grid-cols-4 border-b border-[#2b1a10]">
               {Object.entries(INPUT_MODES).map(([key, item]) => {
                 const Icon = item.icon
                 const active = key === mode
@@ -156,6 +207,33 @@ export function HomePage() {
                       className="w-full bg-transparent text-[16px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace] resize-none"
                     />
                   </div>
+                ) : mode === 'multiple' ? (
+                  <div className="mb-5 space-y-4">
+                    <div className="flex items-center gap-3 rounded-xl border border-[#3c2b1f] bg-[#090605] px-4 h-[52px] shadow-inner shadow-black/40">
+                      <Github className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="GitHub profile URL (e.g. https://github.com/user)"
+                        className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 rounded-xl border border-[#3c2b1f] bg-[#090605] px-4 h-[52px] shadow-inner shadow-black/40">
+                      <Globe className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Website URL (e.g. https://yoursite.com)"
+                        className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 rounded-xl border border-[#3c2b1f] bg-[#090605] px-4 h-[52px] shadow-inner shadow-black/40">
+                      <Briefcase className="h-4 w-4 text-[#8b673f] flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Upwork profile or job URL"
+                        className="w-full bg-transparent text-[15px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div className="mb-5 flex h-[56px] items-center rounded-xl border border-[#3c2b1f] bg-[#090605] px-4 shadow-inner shadow-black/40">
                     <span className="mr-3 text-[20px] text-[#9e866d] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]">
@@ -169,6 +247,37 @@ export function HomePage() {
                       className="w-full bg-transparent text-[20px] text-[#9e866d] outline-none placeholder:text-[#5f4c3b] [font-family:'JetBrains_Mono',ui-monospace,SFMono-Regular,Menlo,monospace]"
                     />
                   </div>
+                )}
+
+                {mode === 'github' && (
+                  <div className="flex items-center gap-3 mb-5">
+                    <span className="text-[15px] text-[#84705d]">Or</span>
+                    <div className="flex-1 h-px bg-[#2b1a10]" />
+                  </div>
+                )}
+
+                {mode === 'github' && (
+                  <button
+                    type="button"
+                    onClick={handleGitHubLogin}
+                    className="group relative flex w-full h-[56px] items-center justify-center gap-3 rounded-xl bg-[#2a2d35] mb-5 text-[15px] font-medium text-[#d0d6de] transition-all duration-200 hover:bg-[#333740] active:scale-[0.99]"
+                  >
+                    {githubToken ? (
+                      <>
+                        <svg className="h-5 w-5 text-[#1fc164]" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                        </svg>
+                        <span>Connected to GitHub</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5 transition-transform duration-200 group-hover:scale-105" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                        </svg>
+                        <span>Connect with GitHub</span>
+                      </>
+                    )}
+                  </button>
                 )}
 
                 <button
@@ -203,6 +312,77 @@ export function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* GitHub Auth Modal */}
+        {showAuthModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAuthModal(false)}>
+            <div
+              className="w-full max-w-[420px] rounded-2xl border border-[#2b1a10] bg-[#120c0a] shadow-[0_40px_100px_rgba(0,0,0,0.7)] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-[#1c110a]">
+                <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+                <span className="ml-3 text-[13px] text-[#8e7963]">GitHub Authorization</span>
+              </div>
+
+              {/* Modal body */}
+              <div className="p-8">
+                {authStep === 'pending' && (
+                  <div className="text-center">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#2a2d35]">
+                      <svg className="h-8 w-8 text-[#d0d6de]" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-[18px] font-semibold text-[#ece7e2] mb-2">Connect to GitHub</h3>
+                    <p className="text-[14px] text-[#8e7963] mb-6">
+                      Authorize MacroCoder to access your public repositories for analysis.
+                    </p>
+                    <button
+                      onClick={handleAuthorize}
+                      className="w-full h-[48px] rounded-xl bg-[#2a2d35] text-[15px] font-medium text-[#d0d6de] hover:bg-[#333740] transition-all active:scale-[0.98]"
+                    >
+                      Authorize Access
+                    </button>
+                    <button
+                      onClick={() => setShowAuthModal(false)}
+                      className="w-full h-[48px] rounded-xl text-[14px] text-[#6d5235] hover:text-[#a47a52] transition-colors mt-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {authStep === 'authorizing' && (
+                  <div className="text-center py-4">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#2a2d35]">
+                      <Loader2 className="h-8 w-8 text-[#e59a1d] animate-spin" strokeWidth={2} />
+                    </div>
+                    <h3 className="text-[18px] font-semibold text-[#ece7e2] mb-2">Connecting...</h3>
+                    <p className="text-[14px] text-[#8e7963]">
+                      Authorizing with GitHub...
+                    </p>
+                  </div>
+                )}
+
+                {authStep === 'done' && (
+                  <div className="text-center py-4">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#0d2117]">
+                      <CheckCircle2 className="h-8 w-8 text-[#1fc164]" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-[18px] font-semibold text-[#ece7e2] mb-2">Connected!</h3>
+                    <p className="text-[14px] text-[#6f9a84]">
+                      GitHub authorization successful.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* FAQ Section */}
         <section className="w-full max-w-[740px] mt-20 mb-10">

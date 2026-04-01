@@ -1,14 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { HomePage } from './components/HomePage'
-import { ResultsPage } from './components/ResultsPage'
+import { Dashboard } from './components/Dashboard'
 import './index.css'
 
 function App() {
   return (
     <BrowserRouter basename="/macrocoder-site">
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   )

@@ -44,6 +44,7 @@ export function LiveTerminalDashboard() {
       description: s.description,
     }))
     console.log('[Dashboard] Demo sessions:', demo)
+    console.log('[Dashboard] Setting initial visibleIds:', demo.map((s: Session) => s.id))
     setSessions(demo)
     setVisibleIds(demo.map((s: Session) => s.id))
     // Use activity from demo data

@@ -40,9 +40,11 @@ export function TerminalSelector({
   }
 
   function setCount(n: number) {
-    const newIds = sessions.slice(0, n).map(s => s.id)
-    console.log('[Selector] setCount:', n, 'setting:', newIds)
-    onChange(newIds)
+    const sessionIds = sessions.slice(0, n).map(s => s.id)
+    console.log('[Selector] sessions slice(0,', n, '):', sessionIds)
+    console.log('[Selector] sessions total:', sessions.length)
+    console.log('[Selector] Setting visibleIds:', sessionIds)
+    onChange(sessionIds)
   }
 
   const count = visibleIds.length

@@ -25,17 +25,24 @@ export function TerminalSelector({
   }, [])
 
   function toggleSession(id: string) {
+    console.log('[Selector] toggleSession:', id, 'current:', visibleIds)
     if (visibleIds.includes(id)) {
       if (visibleIds.length > 1) {
-        onChange(visibleIds.filter(v => v !== id))
+        const newIds = visibleIds.filter(v => v !== id)
+        console.log('[Selector] Setting visibleIds:', newIds)
+        onChange(newIds)
       }
     } else {
-      onChange([...visibleIds, id])
+      const newIds = [...visibleIds, id]
+      console.log('[Selector] Setting visibleIds:', newIds)
+      onChange(newIds)
     }
   }
 
   function setCount(n: number) {
-    onChange(sessions.slice(0, n).map(s => s.id))
+    const newIds = sessions.slice(0, n).map(s => s.id)
+    console.log('[Selector] setCount:', n, 'setting:', newIds)
+    onChange(newIds)
   }
 
   const count = visibleIds.length

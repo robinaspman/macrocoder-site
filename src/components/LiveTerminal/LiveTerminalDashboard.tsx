@@ -24,14 +24,6 @@ interface Activity {
   sessionId: string
 }
 
-interface Activity {
-  time: string
-  event: string
-  detail: string
-  status: string
-  sessionId: string
-}
-
 export function LiveTerminalDashboard() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -55,7 +47,7 @@ export function LiveTerminalDashboard() {
     setSessions(demo)
     setVisibleIds(demo.map((s: Session) => s.id))
     // Use activity from demo data
-    const activityData = ACTIVITY_LOG.slice(0, 5).map(a => ({
+    const activityData = ACTIVITY_LOG.slice(0, 10).map(a => ({
       time: a.time,
       event: a.event,
       detail: a.detail,

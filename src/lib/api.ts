@@ -23,7 +23,10 @@ export interface ReviewResult {
     price_range: [number, number]
     timeline_weeks: number
     complexity: string
+    effort_hours: number
     breakdown: { phase: string; hours: number }[]
+    milestones: string[]
+    warnings: string[]
   }
 }
 

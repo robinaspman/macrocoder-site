@@ -2,7 +2,7 @@ import { ACTIVITY_LOG } from './terminalData'
 
 export function StatsSidebar({ onExpand }: { onExpand: (id: string) => void }) {
   return (
-    <div className="w-[280px] border-l border-[#1e2e2e] bg-[#0e1a1c] flex flex-col flex-shrink-0">
+    <div className="w-[280px] h-[calc(100vh-56px)] border-l border-[#1e2e2e] bg-[#0e1a1c] flex flex-col flex-shrink-0">
       <div className="px-4 py-3 border-b border-[#1e2e2e]">
         <p className="text-[10px] uppercase tracking-wider text-[#5a7a7a]">Activity Log</p>
       </div>

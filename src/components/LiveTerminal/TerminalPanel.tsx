@@ -53,10 +53,12 @@ export function TerminalPanel({
   session,
   onClick,
   compact = false,
+  expanded = false,
 }: {
   session: TerminalSession
   onClick?: () => void
   compact?: boolean
+  expanded?: boolean
 }) {
   const [visibleLines, setVisibleLines] = useState<TerminalLine[]>([])
   const [isComplete, setIsComplete] = useState(false)
@@ -132,7 +134,7 @@ export function TerminalPanel({
         </div>
 
         {/* Terminal content */}
-        <div ref={scrollRef} className="p-3 h-[160px] overflow-y-auto [font-family:'JetBrains_Mono',monospace] text-[11px] leading-relaxed scrollbar-thin">
+        <div ref={scrollRef} className={`p-3 overflow-y-auto [font-family:'JetBrains_Mono',monospace] text-[11px] leading-relaxed scrollbar-thin ${expanded ? 'h-[400px]' : 'h-[160px]'}`}>
           {visibleLines.map((line, i) => (
             <div key={i} className="whitespace-pre">
               <TerminalText line={line} />
@@ -205,6 +207,7 @@ export function TerminalGrid({ sessions, onExpand }: { sessions: TerminalSession
           session={session}
           onClick={() => onExpand(session.id)}
           compact
+          expanded={count <= 2}
         />
       ))}
     </div>

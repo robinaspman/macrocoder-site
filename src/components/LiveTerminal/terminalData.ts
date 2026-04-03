@@ -298,6 +298,21 @@ export const ACTIVITY_LOG = [
   { time: '2h 55m ago', event: 'Added error boundaries', detail: 'Graceful React error handling', status: 'done', sessionId: 'building' },
   { time: '3h 2m ago', event: 'Migrated to App Router', detail: '100% next/app adoption', status: 'done', sessionId: 'migrating' },
   { time: '3h 9m ago', event: 'Configured monitoring alerts', detail: 'Slack + PagerDuty integration', status: 'done', sessionId: 'building' },
+  { time: '3h 16m ago', event: 'Fixed SSR hydration mismatch', detail: 'useLayoutEffect for DOM reads', status: 'done', sessionId: 'debugging' },
+  { time: '3h 23m ago', event: 'Added API versioning', detail: 'v1 → v2 with backward compat', status: 'done', sessionId: 'migrating' },
+  { time: '3h 30m ago', event: 'Optimized image pipeline', detail: 'Sharp + on-the-fly resizing', status: 'done', sessionId: 'optimizing' },
+  { time: '3h 37m ago', event: 'Patched XSS in user input', detail: 'DOMPurify + CSP headers', status: 'done', sessionId: 'securing' },
+  { time: '3h 44m ago', event: 'Built notification center', detail: 'WebSocket + toast + inbox', status: 'done', sessionId: 'building' },
+  { time: '3h 51m ago', event: 'Fixed connection pool exhaustion', detail: 'Lifespan-managed pool', status: 'done', sessionId: 'debugging' },
+  { time: '3h 58m ago', event: 'Migrated to PostgreSQL 16', detail: 'Zero downtime pg_upgrade', status: 'done', sessionId: 'migrating' },
+  { time: '4h 5m ago', event: 'Added GraphQL endpoint', detail: 'Apollo Server + DataLoader', status: 'done', sessionId: 'building' },
+  { time: '4h 12m ago', event: 'Optimized cold starts', detail: '800ms → 12ms via pooling', status: 'done', sessionId: 'optimizing' },
+  { time: '4h 19m ago', event: 'Rotated all API keys', detail: 'Automated key rotation', status: 'done', sessionId: 'securing' },
+  { time: '4h 26m ago', event: 'Fixed race in checkout flow', detail: 'Atomic transactions + locks', status: 'done', sessionId: 'debugging' },
+  { time: '4h 33m ago', event: 'Added i18n support', detail: 'next-intl + 5 locales', status: 'done', sessionId: 'building' },
+  { time: '4h 40m ago', event: 'Implemented edge caching', detail: 'Stale-while-revalidate strategy', status: 'done', sessionId: 'optimizing' },
+  { time: '4h 47m ago', event: 'Fixed memory leak in worker', detail: 'Proper signal handling', status: 'done', sessionId: 'debugging' },
+  { time: '4h 54m ago', event: 'Added audit logging', detail: 'Full CRUD event tracking', status: 'done', sessionId: 'securing' },
 ]
 
 export const JOURNAL_ENTRIES: JournalEntry[] = [

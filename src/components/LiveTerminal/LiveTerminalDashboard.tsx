@@ -77,7 +77,7 @@ export function LiveTerminalDashboard() {
         </div>
 
         {/* Activity log sidebar */}
-        <div className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0`}>
+        <div className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0 min-h-0`}>
           <StatsSidebar onExpand={setExpandedId} />
         </div>
 

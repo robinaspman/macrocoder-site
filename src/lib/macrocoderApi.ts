@@ -1,21 +1,84 @@
 const API_URL = import.meta.env.VITE_MACROCODER_URL
-const API_KEY = import.meta.env.VITE_MACROCODER_API_KEY
 
-async function fetchWithFallback<T>(endpoint: string, fallback: T): Promise<T> {
-  if (!API_URL || !API_KEY) return fallback
+// JWT token stored in localStorage after login
+function getToken(): string | null {
+  return localStorage.getItem('macrocoder_token')
+}
 
+function setToken(token: string): void {
+  localStorage.setItem('macrocoder_token', token)
+}
+
+export function logout(): void {
+  localStorage.removeItem('macrocoder_token')
+}
+
+export async function login(clientId: string, apiKey: string): Promise<boolean> {
+  if (!API_URL) return false
+  
+  try {
+    const formData = new URLSearchParams()
+    formData.append('client_id', clientId)
+    formData.append('api_key', apiKey)
+    
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData,
+    })
+    
+    if (!res.ok) return false
+    
+    const data = await res.json()
+    if (data.token) {
+      setToken(data.token)
+      return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+async function fetchWithAuth<T>(endpoint: string, fallback: T): Promise<T> {
+  if (!API_URL) return fallback
+  
+  const token = getToken()
+  if (!token) return fallback
+  
   try {
     const res = await fetch(`${API_URL}${endpoint}`, {
-      headers: {
-        'X-API-Key': API_KEY,
-      },
+      headers: { 'Authorization': `Bearer ${token}` },
     })
     if (!res.ok) return fallback
-    const data = await res.json()
-    return data.length === 0 ? fallback : data
+    return await res.json()
   } catch {
     return fallback
   }
+}
+
+async function fetchWithApiKey<T>(endpoint: string, fallback: T): Promise<T> {
+  // Legacy - only used if no JWT token available
+  const apiKey = import.meta.env.VITE_MACROCODER_API_KEY
+  if (!API_URL || !apiKey) return fallback
+  
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      headers: { 'X-API-Key': apiKey },
+    })
+    if (!res.ok) return fallback
+    return await res.json()
+  } catch {
+    return fallback
+  }
+}
+
+async function fetchWithFallback<T>(endpoint: string, fallback: T): Promise<T> {
+  // Try JWT first, fall back to API key, then demo
+  const tokenResult = await fetchWithAuth(endpoint, fallback)
+  if (tokenResult !== fallback) return tokenResult
+  
+  return fetchWithApiKey(endpoint, fallback)
 }
 
 export async function getSessions() {
@@ -23,7 +86,7 @@ export async function getSessions() {
 }
 
 export async function getSessionLines(sessionId: string) {
-  return fetchWithFallback(`/api/sessions/${sessionId}/lines`, [])
+  return fetchWithApiKey(`/api/sessions/${sessionId}/lines`, [])
 }
 
 export async function getActivity() {
@@ -39,14 +102,21 @@ export async function getJournal() {
 }
 
 export async function getJournalThought(entryId: string) {
-  return fetchWithFallback(`/api/journal/${entryId}/thought`, { expanded_thought: '' })
+  return fetchWithApiKey(`/api/journal/${entryId}/thought`, { expanded_thought: '' })
 }
 
 export async function connectTerminalWebSocket(sessionId: string) {
-  if (!API_URL || !API_KEY) return null
+  if (!API_URL) return null
   
-  const wsUrl = API_URL.replace('http', 'ws') + `/ws/${sessionId}`
+  const token = getToken()
+  if (!token) return null
+  
+  const wsUrl = API_URL.replace('http', 'ws') + `/ws/${sessionId}?token=${token}`
   const ws = new WebSocket(wsUrl)
   
   return ws
+}
+
+export function isAuthenticated(): boolean {
+  return !!getToken()
 }

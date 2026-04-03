@@ -90,7 +90,15 @@ export async function getSessionLines(sessionId: string) {
 }
 
 export async function getActivity() {
-  return fetchWithFallback('/api/activity', [])
+  if (!API_URL) return []
+  
+  try {
+    const res = await fetch(`${API_URL}/api/activity`)
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
 }
 
 export async function getStats() {
@@ -118,7 +126,15 @@ export async function getLatestSnapshots(limit = 6) {
 }
 
 export async function getSnapshot(sessionId: string) {
-  return fetchWithFallback(`/api/snapshots/${sessionId}`, null)
+  if (!API_URL) return null
+  
+  try {
+    const res = await fetch(`${API_URL}/api/snapshots/${sessionId}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
 }
 
 export async function connectTerminalWebSocket(sessionId: string) {

@@ -20,7 +20,7 @@ export function StatsSidebar({
       <div className="px-4 py-3 border-b border-[#1e2e2e] flex-shrink-0">
         <p className="text-[10px] uppercase tracking-wider text-[#5a7a7a]">Activity Log</p>
       </div>
-      <div className="h-[320px] p-3 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="h-[400px] p-3 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-1.5">
           {entries.map((entry, i) => (
             <button

@@ -438,6 +438,7 @@ async def get_session_lines(
 
 @app.get("/api/activity")
 async def get_activity(request: Request):
+    """Get activity log - always returns demo data unless live Hetzner data exists"""
     check_rate_limit(f"activity_{get_real_ip(request)}", limit=10, window=60)
     
     if not HETZNER_API_KEY:
@@ -446,6 +447,9 @@ async def get_activity(request: Request):
     try:
         data = await hetzner_get("/actions?status=success&sort=desc&per_page=50")
         actions = data.get("actions", [])
+        
+        if not actions:
+            return DEMO_ACTIVITY
         
         activity = []
         for action in actions:
@@ -456,7 +460,7 @@ async def get_activity(request: Request):
                 "status": "done",
                 "sessionId": "deploying",
             })
-        return activity if activity else DEMO_ACTIVITY
+        return activity + DEMO_ACTIVITY[:3]
     except Exception:
         return DEMO_ACTIVITY
 
@@ -476,44 +480,18 @@ async def get_stats(request: Request):
         return DEMO_STATS
 
 @app.get("/api/journal")
-async def get_journal(
-    request: Request,
-    x_api_key: str = Depends(verify_api_key),
-    token: str = Header(None)
-):
+async def get_journal(request: Request):
+    """Get journal entries - always returns demo data"""
     check_rate_limit(f"journal_{get_real_ip(request)}", limit=10, window=60)
-    
-    client_id = None
-    if token:
-        try:
-            payload = jwt.decode(token.replace("Bearer ", ""), JWT_SECRET, algorithms=["HS256"])
-            client_id = payload.get("client_id")
-        except Exception:
-            pass
-    
-    result = DEMO_JOURNAL.copy()
-    
-    if client_id and client_id != "demo":
-        result = [censor_for_client(entry, client_id) for entry in result]
-    
-    return result
+    return DEMO_JOURNAL.copy()
 
 @app.get("/api/journal/{entry_id}/thought")
 async def get_journal_thought(
     request: Request,
     entry_id: str = Path(..., max_length=100),
-    x_api_key: str = Depends(verify_api_key),
-    token: str = Header(None)
+    x_api_key: str = Header(None)
 ):
     check_rate_limit(f"thought_{get_real_ip(request)}", limit=10, window=60)
-    
-    client_id = None
-    if token:
-        try:
-            payload = jwt.decode(token.replace("Bearer ", ""), JWT_SECRET, algorithms=["HS256"])
-            client_id = payload.get("client_id")
-        except Exception:
-            pass
     
     for entry in DEMO_JOURNAL:
         if entry["id"] == entry_id:
@@ -647,11 +625,33 @@ async def get_snapshots(limit: int = Query(50, le=100), offset: int = Query(0, g
 
 @app.get("/api/snapshots/latest")
 async def get_latest_snapshots(limit: int = Query(6, le=20)):
-    """Get latest snapshots for the live terminal"""
+    """Get latest snapshots for the live terminal - always includes demo data, live snapshots added on top"""
     snapshots = await db.get_latest_snapshots(limit=limit)
+    
+    demo_sessions = [
+        {"session_id": "deploying", "mode": "deploy", "command": "macrocoder deploy --env production --region eu-w...", "status": "running", "description": "Zero-downtime production deployment"},
+        {"session_id": "debugging", "mode": "debug", "command": "macrocoder diagnose --trace", "status": "running", "description": "Incident response resolved in 47 seconds"},
+        {"session_id": "building", "mode": "build", "command": "macrocoder build --prod", "status": "running", "description": "Bundle optimization in progress"},
+        {"session_id": "migrating", "mode": "migrate", "command": "macrocoder migrate express --to next", "status": "running", "description": "Express to Next.js migration"},
+        {"session_id": "securing", "mode": "secure", "command": "macrocoder audit --fix", "status": "completed", "description": "Security audit completed"},
+        {"session_id": "optimizing", "mode": "optimize", "command": "macrocoder optimize --target lighthouse", "status": "running", "description": "Lighthouse score: 34 → 98"},
+    ]
+    
     if not snapshots:
-        return {"snapshots": [], "source": "demo"}
-    return {"snapshots": snapshots, "source": "live"}
+        return {"snapshots": demo_sessions[:limit], "source": "demo"}
+    
+    demo_map = {s["session_id"]: s for s in demo_sessions}
+    result = []
+    
+    for snap in snapshots:
+        result.append(snap)
+        demo_map.pop(snap.get("session_id", ""), None)
+    
+    for remaining in demo_map.values():
+        if len(result) < limit:
+            result.append(remaining)
+    
+    return {"snapshots": result[:limit], "source": "live"}
 
 
 @app.get("/api/snapshots/{session_id}")

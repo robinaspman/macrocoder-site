@@ -131,6 +131,13 @@ class Database:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    async def delete_snapshot(self, session_id: str) -> bool:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM snapshots WHERE session_id = ?", (session_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
     async def cleanup_old_snapshots(self, days: int = 30) -> int:
         async with self.get_conn() as conn:
             cursor = conn.cursor()

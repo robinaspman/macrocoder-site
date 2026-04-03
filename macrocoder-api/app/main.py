@@ -618,14 +618,28 @@ async def create_snapshot(payload: SnapshotPayload, request: Request, x_api_key:
 
 
 @app.get("/api/snapshots")
-async def get_snapshots(limit: int = Query(50, le=100), offset: int = Query(0, ge=0)):
+async def get_snapshots(
+    request: Request,
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+    x_api_key: str = Header(None)
+):
     """Get past sessions for the dashboard"""
+    if x_api_key:
+        verify_api_key(x_api_key)
     return await db.get_snapshots(limit=limit, offset=offset)
 
 
 @app.get("/api/snapshots/latest")
-async def get_latest_snapshots(limit: int = Query(20, le=50)):
+async def get_latest_snapshots(
+    request: Request,
+    limit: int = Query(20, le=50),
+    x_api_key: str = Header(None)
+):
     """Get latest snapshots for the live terminal - returns all available grouped by mode"""
+    if x_api_key:
+        verify_api_key(x_api_key)
+    
     snapshots = await db.get_all_snapshots(limit=limit)
     
     demo_sessions = [
@@ -660,12 +674,32 @@ async def get_latest_snapshots(limit: int = Query(20, le=50)):
 
 
 @app.get("/api/snapshots/{session_id}")
-async def get_snapshot(session_id: str):
+async def get_snapshot(
+    session_id: str,
+    x_api_key: str = Header(None)
+):
     """Get single snapshot details"""
+    if x_api_key:
+        verify_api_key(x_api_key)
+    
     snapshot = await db.get_snapshot(session_id)
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snapshot
+
+
+@app.delete("/api/snapshots/{session_id}")
+async def delete_snapshot(
+    session_id: str,
+    x_api_key: str = Header(...)
+):
+    """Delete a snapshot - requires API key"""
+    verify_api_key(x_api_key)
+    
+    deleted = await db.delete_snapshot(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return {"deleted": session_id}
 
 
 @app.post("/api/maintenance/cleanup")

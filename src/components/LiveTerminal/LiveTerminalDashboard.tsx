@@ -96,6 +96,7 @@ export function LiveTerminalDashboard() {
             visibleIds={visibleIds}
             onChange={setVisibleIds}
           />
+          <div>debug: sessions={sessions.length}, terminalSessions={terminalSessions.length}</div>
         </div>
         <div className="ml-auto flex items-center gap-4">
           <span className="text-[11px] text-[#5a7a7a]">

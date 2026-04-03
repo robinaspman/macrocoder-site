@@ -3,10 +3,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TerminalGrid } from './TerminalPanel'
 import { StatsSidebar } from './StatsSidebar'
 import { ExpandedTerminal } from './ExpandedTerminal'
+import { TerminalSelector } from './TerminalSelector'
+import { TERMINAL_SESSIONS } from './terminalData'
 
 export function LiveTerminalDashboard() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [visibleIds, setVisibleIds] = useState<string[]>(TERMINAL_SESSIONS.map(s => s.id))
+
+  const visibleSessions = TERMINAL_SESSIONS.filter(s => visibleIds.includes(s.id))
 
   return (
     <div className="h-screen bg-[#0a1214] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
@@ -30,10 +35,15 @@ export function LiveTerminalDashboard() {
           <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider animate-pulse">
             LIVE
           </span>
+          <TerminalSelector
+            sessions={TERMINAL_SESSIONS}
+            visibleIds={visibleIds}
+            onChange={setVisibleIds}
+          />
         </div>
         <div className="ml-auto flex items-center gap-4">
           <span className="text-[11px] text-[#5a7a7a]">
-            1 agent · 6 modes · Working live
+            1 agent · {visibleIds.length} mode{visibleIds.length !== 1 ? 's' : ''} · Working live
           </span>
         </div>
       </header>
@@ -41,10 +51,10 @@ export function LiveTerminalDashboard() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Terminal area */}
-        <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-[1400px] mx-auto">
+        <div className="flex-1 flex flex-col p-8">
+          <div className="max-w-[1400px] mx-auto w-full flex flex-col flex-1 min-h-0">
             {/* Hero text */}
-            <div className="mb-8">
+            <div className="mb-6 flex-shrink-0">
               <h1 className="text-[40px] font-bold leading-tight">
                 <span className="text-[#e0a040]">1 agent.</span>{' '}
                 <span className="text-white">Working live.</span>
@@ -54,12 +64,14 @@ export function LiveTerminalDashboard() {
               </p>
             </div>
 
-            <TerminalGrid onExpand={setExpandedId} />
+            <div className="flex-1 min-h-0">
+              <TerminalGrid sessions={visibleSessions} onExpand={setExpandedId} />
+            </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between mt-8 text-[10px] uppercase tracking-wider text-[#3a5050]">
+            <div className="flex items-center justify-between mt-6 flex-shrink-0 text-[10px] uppercase tracking-wider text-[#3a5050]">
               <span>&copy; 2026 MACROCODER</span>
-              <span>6 SEQUENCES · &infin; LOOP</span>
+              <span>{visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} · &infin; LOOP</span>
             </div>
           </div>
         </div>

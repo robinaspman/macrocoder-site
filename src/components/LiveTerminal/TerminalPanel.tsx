@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import type { TerminalSession, TerminalLine } from './terminalData'
-import { TERMINAL_SESSIONS } from './terminalData'
 
 const LINE_COLORS: Record<string, string> = {
   command: '#e59a1d',
@@ -139,9 +138,7 @@ export function TerminalPanel({
               <TerminalText line={line} />
             </div>
           ))}
-          {!isComplete && (
-            <span className={`inline-block w-2 h-4 ${showCursor ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: LINE_COLORS.command }} />
-          )}
+          <span className={`inline-block w-2 h-4 ${showCursor ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: LINE_COLORS.command }} />
         </div>
 
         {/* Footer description */}
@@ -184,18 +181,25 @@ export function TerminalPanel({
             <TerminalText line={line} />
           </div>
         ))}
-        {!isComplete && (
-          <span className={`inline-block w-2 h-4 ${showCursor ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: LINE_COLORS.command }} />
-        )}
+        <span className={`inline-block w-2 h-4 ${showCursor ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: LINE_COLORS.command }} />
       </div>
     </div>
   )
 }
 
-export function TerminalGrid({ onExpand }: { onExpand: (id: string) => void }) {
+export function TerminalGrid({ sessions, onExpand }: { sessions: TerminalSession[]; onExpand: (id: string) => void }) {
+  const count = sessions.length
+  const gridClass = count === 1
+    ? 'grid-cols-1'
+    : count === 2
+    ? 'grid-cols-2'
+    : count <= 4
+    ? 'grid-cols-2'
+    : 'grid-cols-3'
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {TERMINAL_SESSIONS.map(session => (
+    <div className={`grid ${gridClass} gap-4 h-full`}>
+      {sessions.map(session => (
         <TerminalPanel
           key={session.id}
           session={session}

@@ -12,6 +12,7 @@ INIT_SQL = """
 CREATE TABLE IF NOT EXISTS snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT UNIQUE NOT NULL,
+    client_id TEXT NOT NULL DEFAULT 'demo',
     mode TEXT NOT NULL,
     command TEXT,
     status TEXT NOT NULL,
@@ -21,24 +22,21 @@ CREATE TABLE IF NOT EXISTS snapshots (
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS stats (
+CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE,
-    uptime TEXT,
-    response_time TEXT,
-    deployments INTEGER DEFAULT 0,
-    files_changed INTEGER DEFAULT 0,
-    tests_passing TEXT,
-    migrations INTEGER DEFAULT 0,
-    security_score TEXT,
-    active_agents INTEGER DEFAULT 0,
-    recorded_at TEXT NOT NULL
+    client_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    api_key_hash TEXT NOT NULL,
+    can_write BOOLEAN DEFAULT 1,
+    active BOOLEAN DEFAULT 1,
+    created_at TEXT NOT NULL
 );
 
 CREATE INDEX idx_snapshots_session ON snapshots(session_id);
+CREATE INDEX idx_snapshots_client ON snapshots(client_id);
 CREATE INDEX idx_snapshots_created ON snapshots(created_at);
+CREATE INDEX idx_clients_client_id ON clients(client_id);
 """
-
 
 class Database:
     def __init__(self, path: str = DB_PATH):
@@ -66,6 +64,7 @@ class Database:
         mode: str,
         status: str,
         lines: list,
+        client_id: str = "demo",
         command: Optional[str] = None,
         description: Optional[str] = None,
     ) -> int:
@@ -75,34 +74,43 @@ class Database:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO snapshots (session_id, mode, command, status, description, lines_json, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO snapshots (session_id, client_id, mode, command, status, description, lines_json, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET
                    lines_json = excluded.lines_json,
                    status = excluded.status,
                    description = excluded.description,
+                   client_id = excluded.client_id,
                    updated_at = excluded.updated_at""",
+                (session_id, client_id, mode, command, status, description, lines_json, now, now),
                 (session_id, mode, command, status, description, lines_json, now, now),
             )
             conn.commit()
             return cursor.lastrowid
 
-    async def get_snapshots(self, limit: int = 50, offset: int = 0) -> list:
+    async def get_snapshots(self, limit: int = 50, offset: int = 0, client_id: str = "demo") -> list:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """SELECT session_id, mode, command, status, description, created_at
-                   FROM snapshots ORDER BY created_at DESC LIMIT ? OFFSET ?""",
-                (limit, offset),
-            )
+            if client_id == "demo":
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = 'demo' ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+                    (limit, offset),
+                )
+            else:
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = ? OR client_id = 'demo' ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+                    (client_id, limit, offset),
+                )
             return [dict(row) for row in cursor.fetchall()]
 
-    async def get_snapshot(self, session_id: str) -> Optional[dict]:
+    async def get_snapshot(self, session_id: str, client_id: str = "demo") -> Optional[dict]:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM snapshots WHERE session_id = ?",
-                (session_id,),
+                "SELECT * FROM snapshots WHERE session_id = ? AND (client_id = ? OR client_id = 'demo')",
+                (session_id, client_id),
             )
             row = cursor.fetchone()
             if row:
@@ -111,30 +119,47 @@ class Database:
                 return data
             return None
 
-    async def get_latest_snapshots(self, limit: int = 6) -> list:
+    async def get_latest_snapshots(self, limit: int = 6, client_id: str = "demo") -> list:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """SELECT session_id, mode, command, status, description, created_at
-                   FROM snapshots ORDER BY created_at DESC LIMIT ?""",
-                (limit,),
-            )
+            if client_id == "demo":
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = 'demo' ORDER BY created_at DESC LIMIT ?""",
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = ? OR client_id = 'demo' ORDER BY created_at DESC LIMIT ?""",
+                    (client_id, limit),
+                )
             return [dict(row) for row in cursor.fetchall()]
 
-    async def get_all_snapshots(self, limit: int = 50) -> list:
+    async def get_all_snapshots(self, limit: int = 50, client_id: str = "demo") -> list:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """SELECT session_id, mode, command, status, description, created_at
-                   FROM snapshots ORDER BY created_at DESC LIMIT ?""",
-                (limit,),
-            )
+            if client_id == "demo":
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = 'demo' ORDER BY created_at DESC LIMIT ?""",
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    """SELECT session_id, mode, command, status, description, created_at
+                       FROM snapshots WHERE client_id = ? OR client_id = 'demo' ORDER BY created_at DESC LIMIT ?""",
+                    (client_id, limit),
+                )
             return [dict(row) for row in cursor.fetchall()]
 
-    async def delete_snapshot(self, session_id: str) -> bool:
+    async def delete_snapshot(self, session_id: str, client_id: str = None) -> bool:
         async with self.get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM snapshots WHERE session_id = ?", (session_id,))
+            if client_id:
+                cursor.execute("DELETE FROM snapshots WHERE session_id = ? AND client_id = ?", (session_id, client_id))
+            else:
+                cursor.execute("DELETE FROM snapshots WHERE session_id = ?", (session_id,))
             conn.commit()
             return cursor.rowcount > 0
 
@@ -148,6 +173,41 @@ class Database:
             )
             conn.commit()
             return cursor.rowcount
+
+    async def get_client_by_api_key(self, api_key: str) -> Optional[dict]:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM clients WHERE api_key_hash = ? AND active = 1",
+                (api_key,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    async def create_client(self, client_id: str, name: str, api_key_hash: str) -> int:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            now = datetime.utcnow().isoformat()
+            cursor.execute(
+                """INSERT INTO clients (client_id, name, api_key_hash, created_at)
+                   VALUES (?, ?, ?, ?)""",
+                (client_id, name, api_key_hash, now),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+    async def get_clients(self) -> list:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT client_id, name, can_write, active, created_at FROM clients")
+            return [dict(row) for row in cursor.fetchall()]
+
+    async def delete_client(self, client_id: str) -> bool:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM clients WHERE client_id = ?", (client_id,))
+            conn.commit()
+            return cursor.rowcount > 0
 
 
 db = Database()

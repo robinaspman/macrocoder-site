@@ -188,15 +188,23 @@ async def catch_all_handler(request: Request, exc: Exception):
 # ============== SECURITY ==============
 
 def verify_api_key(x_api_key: str = Header(None)):
-    if not x_api_key or not HETZNER_API_KEY:
-        logging.warning(f"Invalid API key attempt - missing key")
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API key")
     
-    # Constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(x_api_key, HETZNER_API_KEY):
+    # First check if it's the master HETZNER_API_KEY
+    if HETZNER_API_KEY and hmac.compare_digest(x_api_key, HETZNER_API_KEY):
+        return "admin"
+    
+    # Then check if it's a client API key
+    client = asyncio.get_event_loop().run_until_complete(db.get_client_by_api_key(x_api_key))
+    if not client:
         logging.warning(f"Invalid API key attempt")
         raise HTTPException(status_code=401, detail="Invalid API key")
-    return x_api_key
+    
+    if not client.get("active", True):
+        raise HTTPException(status_code=403, detail="Client account disabled")
+    
+    return client["client_id"]
 
 def verify_jwt(token: str = Header(None)):
     if not token:
@@ -623,13 +631,17 @@ class SnapshotPayload(BaseModel):
 @limiter.limit("20/minute")
 async def create_snapshot(payload: SnapshotPayload, request: Request, x_api_key: str = Header(...)):
     """Receive snapshot from MacroCoder (24/7 agent) - requires API key"""
-    verify_api_key(x_api_key)
+    client_id = verify_api_key(x_api_key)
     check_rate_limit(f"snapshot_{get_real_ip(request)}", limit=20, window=60)
+    
+    # If client_id is "admin", use "demo" as default; otherwise use the client_id
+    save_client_id = "demo" if client_id == "admin" else client_id
     
     sanitized_lines = sanitize_lines(payload.lines)
     
     snapshot_id = await db.save_snapshot(
         session_id=payload.session_id,
+        client_id=save_client_id,
         mode=payload.mode,
         command=payload.command,
         status=payload.status,
@@ -637,8 +649,8 @@ async def create_snapshot(payload: SnapshotPayload, request: Request, x_api_key:
         lines=sanitized_lines,
     )
     safe_id = sanitize_for_log(payload.session_id)
-    logging.info(f"Snapshot saved: {safe_id}")
-    return {"id": snapshot_id, "session_id": payload.session_id}
+    logging.info(f"Snapshot saved: {safe_id} for client: {save_client_id}")
+    return {"id": snapshot_id, "session_id": payload.session_id, "client_id": save_client_id}
 
 
 @app.get("/api/snapshots")
@@ -649,9 +661,10 @@ async def get_snapshots(
     x_api_key: str = Header(None)
 ):
     """Get past sessions for the dashboard"""
+    client_id = "demo"
     if x_api_key:
-        verify_api_key(x_api_key)
-    return await db.get_snapshots(limit=limit, offset=offset)
+        client_id = verify_api_key(x_api_key)
+    return await db.get_snapshots(limit=limit, offset=offset, client_id=client_id)
 
 
 @app.get("/api/snapshots/latest")
@@ -661,10 +674,11 @@ async def get_latest_snapshots(
     x_api_key: str = Header(None)
 ):
     """Get latest snapshots for the live terminal - returns all available grouped by mode"""
+    client_id = "demo"
     if x_api_key:
-        verify_api_key(x_api_key)
+        client_id = verify_api_key(x_api_key)
     
-    snapshots = await db.get_all_snapshots(limit=limit)
+    snapshots = await db.get_all_snapshots(limit=limit, client_id=client_id)
     
     demo_sessions = [
         {"session_id": "deploying", "mode": "deploy", "command": "macrocoder deploy --env production --region eu-w...", "status": "running", "description": "Zero-downtime production deployment"},
@@ -703,10 +717,11 @@ async def get_snapshot(
     x_api_key: str = Header(None)
 ):
     """Get single snapshot details"""
+    client_id = "demo"
     if x_api_key:
-        verify_api_key(x_api_key)
+        client_id = verify_api_key(x_api_key)
     
-    snapshot = await db.get_snapshot(session_id)
+    snapshot = await db.get_snapshot(session_id, client_id=client_id)
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snapshot
@@ -718,18 +733,66 @@ async def delete_snapshot(
     x_api_key: str = Header(...)
 ):
     """Delete a snapshot - requires API key"""
-    verify_api_key(x_api_key)
+    client_id = verify_api_key(x_api_key)
     
-    deleted = await db.delete_snapshot(session_id)
+    deleted = await db.delete_snapshot(session_id, client_id=None if client_id == "admin" else client_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return {"deleted": session_id}
 
 
 @app.post("/api/maintenance/cleanup")
-async def trigger_cleanup(days: int = Query(30, ge=1, le=365)):
+async def trigger_cleanup(days: int = Query(30, ge=1, le=365), x_api_key: str = Header(...)):
     """Manually trigger cleanup of old snapshots"""
-    if ENV != "production":
-        raise HTTPException(status_code=403, detail="Maintenance only in production")
+    client_id = verify_api_key(x_api_key)
+    if client_id != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
     deleted = await db.cleanup_old_snapshots(days=days)
     return {"deleted": deleted, "days": days}
+
+
+# ============== CLIENT MANAGEMENT ==============
+
+class CreateClientRequest(BaseModel):
+    client_id: str = Field(..., max_length=50)
+    name: str = Field(..., max_length=100)
+    api_key: str = Field(..., max_length=100)
+
+
+@app.post("/api/admin/clients")
+async def create_client(
+    request: CreateClientRequest,
+    x_api_key: str = Header(...)
+):
+    """Create a new client - admin only"""
+    admin_id = verify_api_key(x_api_key)
+    if admin_id != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    import hashlib
+    api_key_hash = hashlib.sha256(request.api_key.encode()).hexdigest()
+    
+    client_id = await db.create_client(request.client_id, request.name, api_key_hash)
+    return {"client_id": request.client_id, "name": request.name}
+
+
+@app.get("/api/admin/clients")
+async def get_clients(x_api_key: str = Header(...)):
+    """List all clients - admin only"""
+    admin_id = verify_api_key(x_api_key)
+    if admin_id != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await db.get_clients()
+
+
+@app.delete("/api/admin/clients/{client_id}")
+async def delete_client(client_id: str, x_api_key: str = Header(...)):
+    """Delete a client - admin only"""
+    admin_id = verify_api_key(x_api_key)
+    if admin_id != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    deleted = await db.delete_client(client_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return {"deleted": client_id}

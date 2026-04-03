@@ -27,12 +27,12 @@ export interface JournalEntry {
 export const TERMINAL_SESSIONS: TerminalSession[] = [
   {
     id: 'deploying',
-    mode: 'DEPLOYING',
+    mode: 'DEPLOY',
     icon: '▲',
     status: 'running',
     command: 'macrocoder deploy --env production --region eu-w...',
     color: '#f97316',
-    description: 'Production deploy with zero downtime',
+    description: 'Zero-downtime production deployment',
     lines: [
       { type: 'command', text: '$ macrocoder deploy --env production --region eu-west', delay: 0 },
       { type: 'output', text: '', delay: 200 },
@@ -73,12 +73,12 @@ export const TERMINAL_SESSIONS: TerminalSession[] = [
   },
   {
     id: 'debugging',
-    mode: 'DEBUGGING',
+    mode: 'DEBUG',
     icon: '›',
     status: 'running',
     command: 'macrocoder diagnose --trace',
     color: '#f97316',
-    description: 'Live incident response in 47 seconds',
+    description: 'Incident response resolved in 47 seconds',
     lines: [
       { type: 'command', text: '$ macrocoder diagnose --trace', delay: 0 },
       { type: 'output', text: '', delay: 300 },
@@ -112,12 +112,12 @@ export const TERMINAL_SESSIONS: TerminalSession[] = [
   },
   {
     id: 'building',
-    mode: 'BUILDING',
+    mode: 'BUILD',
     icon: '●',
     status: 'running',
     command: 'macrocoder build dashboard --from-spec',
     color: '#f97316',
-    description: 'Full dashboard from a single prompt',
+    description: 'Dashboard generated from a single prompt',
     lines: [
       { type: 'command', text: '$ macrocoder build dashboard --from-spec', delay: 0 },
       { type: 'output', text: '', delay: 300 },
@@ -153,12 +153,12 @@ export const TERMINAL_SESSIONS: TerminalSession[] = [
   },
   {
     id: 'migrating',
-    mode: 'MIGRATING',
+    mode: 'MIGRATE',
     icon: '◇',
     status: 'running',
     command: 'macrocoder migrate --from express --to edge-func...',
     color: '#3b82f6',
-    description: 'Express → Edge Functions, zero manual work',
+    description: 'Express migrated to Edge Functions with no manual patching',
     lines: [
       { type: 'command', text: '$ macrocoder migrate --from express --to edge-functions', delay: 0 },
       { type: 'output', text: '', delay: 300 },
@@ -190,12 +190,12 @@ export const TERMINAL_SESSIONS: TerminalSession[] = [
   },
   {
     id: 'securing',
-    mode: 'SECURING',
+    mode: 'SECURE',
     icon: '□',
     status: 'running',
     command: 'macrocoder audit --fix --strict',
     color: '#ef4444',
-    description: 'Full security audit with auto-patching',
+    description: 'Security audit and patch pass completed automatically',
     lines: [
       { type: 'command', text: '$ macrocoder audit --fix --strict', delay: 0 },
       { type: 'output', text: '', delay: 300 },
@@ -223,12 +223,12 @@ export const TERMINAL_SESSIONS: TerminalSession[] = [
   },
   {
     id: 'optimizing',
-    mode: 'OPTIMIZING',
+    mode: 'OPTIMIZE',
     icon: '●',
     status: 'running',
     command: 'macrocoder optimize --target lighthouse',
     color: '#22c55e',
-    description: 'Lighthouse 34 → 98 in one pass',
+    description: 'Lighthouse improved from 34 to 98 in one pass',
     lines: [
       { type: 'command', text: '$ macrocoder optimize --target lighthouse', delay: 0 },
       { type: 'output', text: '', delay: 300 },

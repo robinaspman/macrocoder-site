@@ -54,13 +54,16 @@ export function LiveTerminalDashboard() {
         <div className="flex-1 flex flex-col p-8">
           <div className="max-w-[1400px] mx-auto w-full flex flex-col flex-1 min-h-0">
             {/* Hero text */}
-            <div className="mb-6 flex-shrink-0">
-              <h1 className="text-[40px] font-bold leading-tight">
-                <span className="text-[#e0a040]">1 agent.</span>{' '}
-                <span className="text-white">Working live.</span>
+            <div className="mb-8 flex-shrink-0 max-w-[720px]">
+              <h1 className="text-[32px] font-bold leading-tight tracking-tight">
+                <span className="text-[#e0a040]" style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}>Macrocoder.</span>{' '}
+                <span className="text-white">Multiple Agents. Real Execution.</span>
               </h1>
-              <p className="text-[#5a7a7a] text-[15px] mt-2">
-                Click any terminal to watch the full sequence.
+              <p className="text-[#8aaa9a] text-[14px] mt-3 font-medium">
+                Private cloud-connected agent orchestration for build, deploy, debugging, migration, security, and optimization.
+              </p>
+              <p className="text-[#3a5050] text-[11px] mt-3 leading-relaxed">
+                A mix of live workflows and controlled demo content. Sensitive data is redacted where required.
               </p>
             </div>
 
@@ -71,7 +74,7 @@ export function LiveTerminalDashboard() {
             {/* Footer */}
             <div className="flex items-center justify-between mt-6 flex-shrink-0 text-[10px] uppercase tracking-wider text-[#3a5050]">
               <span>&copy; 2026 MACROCODER</span>
-              <span>{visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} · &infin; LOOP</span>
+              <span>{visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} ACTIVE</span>
             </div>
           </div>
         </div>

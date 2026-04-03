@@ -128,7 +128,7 @@ export function LiveTerminalDashboard() {
 
             {/* Footer */}
             <div className="flex items-center justify-between mt-6 flex-shrink-0 text-[10px] uppercase tracking-wider text-[#3a5050]">
-              <span>&copy; 2026 MACROCODER</span>
+              <span>&copy; 2026 MACROCODER · Demo Only · No Client Code</span>
               <span>{visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} ACTIVE</span>
             </div>
           </div>

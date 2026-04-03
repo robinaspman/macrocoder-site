@@ -19,6 +19,12 @@ export interface ReviewResult {
     timeline: string
     scope: string[]
   }
+  estimate?: {
+    price_range: [number, number]
+    timeline_weeks: number
+    complexity: string
+    breakdown: { phase: string; hours: number }[]
+  }
 }
 
 export interface ReviewStatus {

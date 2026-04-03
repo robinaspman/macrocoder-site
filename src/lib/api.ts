@@ -23,9 +23,9 @@ export interface ReviewResult {
     price_range: [number, number]
     timeline_weeks: number
     complexity: string
-    effort_hours: number
+    effort_hours: [number, number]
     breakdown: { phase: string; hours: number }[]
-    milestones: string[]
+    milestones: { name: string; summary: string; min_price: number; max_price: number; estimated_hours: [number, number] }[]
     warnings: string[]
   }
 }

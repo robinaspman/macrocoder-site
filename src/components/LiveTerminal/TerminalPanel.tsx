@@ -71,17 +71,26 @@ export function TerminalPanel({
     timeoutsRef.current.forEach(clearTimeout)
     timeoutsRef.current = []
 
-    let cumulativeDelay = 0
-    session.lines.forEach((line, i) => {
-      cumulativeDelay += line.delay
-      const timeout = window.setTimeout(() => {
-        setVisibleLines(prev => [...prev, line])
-        if (i === session.lines.length - 1) {
-          setIsComplete(true)
-        }
-      }, cumulativeDelay)
-      timeoutsRef.current.push(timeout)
-    })
+    const startAnimation = () => {
+      let cumulativeDelay = 0
+      session.lines.forEach((line, i) => {
+        cumulativeDelay += line.delay
+        const timeout = window.setTimeout(() => {
+          setVisibleLines(prev => [...prev, line])
+          if (i === session.lines.length - 1) {
+            setIsComplete(true)
+            // Loop animation after a delay
+            const loopTimeout = window.setTimeout(() => {
+              startAnimation()
+            }, 3000)
+            timeoutsRef.current.push(loopTimeout)
+          }
+        }, cumulativeDelay)
+        timeoutsRef.current.push(timeout)
+      })
+    }
+
+    startAnimation()
 
     return () => {
       timeoutsRef.current.forEach(clearTimeout)

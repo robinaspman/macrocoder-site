@@ -33,8 +33,8 @@ export function StatsSidebar({ onExpand }: { onExpand: (id: string) => void }) {
       <div className="px-4 py-3 border-b border-[#1e2e2e]">
         <p className="text-[10px] uppercase tracking-wider text-[#5a7a7a]">Activity Log</p>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 min-h-0">
-        <div className="space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 min-h-0">
+        <div className="space-y-1.5">
           {sortedLog.map((entry, i) => (
             <button
               key={entry.sessionId + i}

@@ -157,7 +157,7 @@ function ActivityTab({ sortedLog, onSwitch }: { sortedLog: typeof ACTIVITY_LOG; 
   return (
     <div>
       <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-4">Activity Log</p>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {sortedLog.map((entry, i) => (
           <button
             key={i}

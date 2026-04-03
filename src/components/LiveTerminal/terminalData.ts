@@ -270,6 +270,18 @@ export const ACTIVITY_LOG = [
   { time: '15m ago', event: 'Lighthouse score: 34 → 98', detail: 'Images, fonts, code splitting', status: 'done', sessionId: 'optimizing' },
   { time: '19m ago', event: 'Resolved Stripe webhook failures', detail: 'Idempotency key + retry logic', status: 'done', sessionId: 'debugging' },
   { time: '22m ago', event: 'Added real-time subscriptions', detail: 'WebSocket via FastAPI + React', status: 'done', sessionId: 'building' },
+  { time: '26m ago', event: 'Optimized database indices', detail: 'Query performance +340% faster', status: 'done', sessionId: 'optimizing' },
+  { time: '31m ago', event: 'Refactored auth middleware', detail: 'JWT + refresh token rotation', status: 'done', sessionId: 'securing' },
+  { time: '35m ago', event: 'Fixed N+1 queries in API', detail: 'Batch loading with DataLoader', status: 'done', sessionId: 'debugging' },
+  { time: '39m ago', event: 'Deployed hotfix v2.4.0', detail: 'Session timeout issue resolved', status: 'done', sessionId: 'deploying' },
+  { time: '44m ago', event: 'Updated dependencies', detail: 'React 19, Next.js 16.1, FastAPI 0.115', status: 'done', sessionId: 'building' },
+  { time: '48m ago', event: 'Configured CDN cache rules', detail: 'Smart invalidation with tags', status: 'done', sessionId: 'optimizing' },
+  { time: '52m ago', event: 'Added request tracing', detail: 'Full OpenTelemetry integration', status: 'done', sessionId: 'debugging' },
+  { time: '57m ago', event: 'Migrated to Vercel KV', detail: 'Rate limiting + session store', status: 'done', sessionId: 'migrating' },
+  { time: '1h ago', event: 'Enabled compression', detail: 'Brotli + gzip on all assets', status: 'done', sessionId: 'optimizing' },
+  { time: '1h 5m ago', event: 'Patched CORS headers', detail: 'Credential + SameSite policies', status: 'done', sessionId: 'securing' },
+  { time: '1h 12m ago', event: 'Built PDF export feature', detail: 'jsPDF + React rendering', status: 'done', sessionId: 'building' },
+  { time: '1h 18m ago', event: 'Fixed memory leak in hooks', detail: 'useEffect cleanup handlers', status: 'done', sessionId: 'debugging' },
 ]
 
 export const JOURNAL_ENTRIES: JournalEntry[] = [

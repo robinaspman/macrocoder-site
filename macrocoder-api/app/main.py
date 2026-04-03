@@ -9,6 +9,8 @@ import asyncio
 import jwt
 import time
 import logging
+import threading
+import hmac
 from collections import defaultdict
 from datetime import datetime, timedelta
 from slowapi import Limiter
@@ -19,14 +21,22 @@ from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="MacroCoder API")
 
+# Environment detection
+ENV = os.getenv("ENV", "development")
+
 # Rate limiter with proper IP extraction
 def get_real_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip
+    trusted_proxies = os.getenv("TRUSTED_PROXIES", "").split(",") if ENV == "production" else []
+    
+    # Only trust X-Forwarded-For from trusted proxies in production
+    if trusted_proxies and request.client and request.client.host in trusted_proxies:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip
+    
     return request.client.host if request.client else "unknown"
 
 limiter = Limiter(key_func=get_real_ip)
@@ -39,7 +49,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
-# Logging
+# Logging with sanitization
 log_dir = os.getenv("LOG_DIR", "/var/log")
 try:
     os.makedirs(log_dir, exist_ok=True)
@@ -55,13 +65,15 @@ except Exception:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 HETZNER_API_KEY = os.getenv("HETZNER_API_KEY", "")
-HETZNER_API_URL = "https://api.hetzner.cloud/v1"
 
-# JWT Secret - FAIL if not set in production
+# JWT Secret - FAIL if not set in production (strict)
 JWT_SECRET = os.getenv("JWT_SECRET")
-if not JWT_SECRET and os.getenv("ENV") == "production":
-    raise ValueError("JWT_SECRET must be set in production!")
-if not JWT_SECRET:
+if ENV == "production":
+    if not JWT_SECRET:
+        raise ValueError("JWT_SECRET must be set in production!")
+    if len(JWT_SECRET) < 32:
+        raise ValueError("JWT_SECRET must be at least 32 characters")
+elif not JWT_SECRET:
     JWT_SECRET = "dev-only-secret-change-in-production"
 
 # ============== CONFIG ==============
@@ -70,7 +82,16 @@ CLIENT_PERMISSIONS = {
     "demo": {"sessions": ["deploy", "debug", "build", "migrate", "secure", "optimize"], "can_view_internal": True},
 }
 
+# Thread-safe rate limiting
 rate_limit_store = defaultdict(list)
+rate_lock = threading.Lock()
+_last_cleanup = time.time()
+CLEANUP_INTERVAL = 300  # 5 minutes
+
+# WebSocket connection tracking
+ws_connections = defaultdict(int)
+ws_lock = threading.Lock()
+WS_MAX_CONNECTIONS = 100
 
 # ============== MODELS ==============
 
@@ -90,10 +111,23 @@ class SessionRequest(BaseModel):
                 raise ValueError(f"Invalid command character: {d}")
         return v
 
+# ============== HELPERS ==============
+
+def sanitize_for_log(value: str) -> str:
+    """Remove newlines and control characters that could inject fake log entries."""
+    return ''.join(c for c in value if ord(c) >= 32 or c in '\t').strip()[:200]
+
+def validate_hetzner_path(path: str) -> str:
+    """Validate path to prevent path traversal/SSRF."""
+    if not path.startswith("/"):
+        raise ValueError("Path must start with /")
+    if ".." in path or path != os.path.normpath(path):
+        raise ValueError("Invalid path")
+    return path
+
 # ============== ERROR HANDLING ==============
 
 class APIError(Exception):
-    """Custom API error with logging."""
     def __init__(self, message: str, status_code: int = 500, log_level: str = "error"):
         self.message = message
         self.status_code = status_code
@@ -113,7 +147,12 @@ async def catch_all_handler(request: Request, exc: Exception):
 # ============== SECURITY ==============
 
 def verify_api_key(x_api_key: str = Header(None)):
-    if x_api_key != HETZNER_API_KEY:
+    if not x_api_key or not HETZNER_API_KEY:
+        logging.warning(f"Invalid API key attempt - missing key")
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    # Constant-time comparison to prevent timing attacks
+    if not hmac.compare_digest(x_api_key, HETZNER_API_KEY):
         logging.warning(f"Invalid API key attempt")
         raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
@@ -134,15 +173,38 @@ def verify_jwt(token: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def check_rate_limit(identifier: str, limit: int = 10, window: int = 60):
+    global _last_cleanup
     now = time.time()
     rate_key = f"{identifier}_{int(now / window)}"
     
-    rate_limit_store[rate_key] = [t for t in rate_limit_store[rate_key] if now - t < window]
-    
-    if len(rate_limit_store[rate_key]) >= limit:
-        raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Max {limit} requests per minute.")
-    
-    rate_limit_store[rate_key].append(now)
+    with rate_lock:
+        # Periodic cleanup to prevent memory leak
+        if now - _last_cleanup > CLEANUP_INTERVAL:
+            cutoff = now - (window * 2)
+            keys_to_delete = [k for k, v in rate_limit_store.items() 
+                            if all(t < cutoff for t in v)]
+            for k in keys_to_delete:
+                del rate_limit_store[k]
+            _last_cleanup = now
+        
+        rate_limit_store[rate_key] = [t for t in rate_limit_store[rate_key] if now - t < window]
+        
+        if len(rate_limit_store[rate_key]) >= limit:
+            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Max {limit} requests per minute.")
+        
+        rate_limit_store[rate_key].append(now)
+
+def check_ws_rate_limit(client_id: str) -> bool:
+    """Check WebSocket connection limit."""
+    with ws_lock:
+        if ws_connections[client_id] >= WS_MAX_CONNECTIONS:
+            return False
+        ws_connections[client_id] += 1
+        return True
+
+def release_ws_connection(client_id: str):
+    with ws_lock:
+        ws_connections[client_id] = max(0, ws_connections[client_id] - 1)
 
 def validate_client_id(client_id: str):
     if client_id and client_id not in CLIENT_PERMISSIONS:
@@ -164,9 +226,11 @@ def censor_for_client(data: dict, client_id: str) -> dict:
 # ============== HETZNER CLIENT ==============
 
 async def hetzner_get(path: str):
+    validated_path = validate_hetzner_path(path)
+    
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{HETZNER_API_URL}{path}",
+            f"https://api.hetzner.cloud.v1{validated_path}",
             headers={"Authorization": f"Bearer {HETZNER_API_KEY}"},
             timeout=10.0,
         )
@@ -254,8 +318,13 @@ DEMO_JOURNAL = [
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    client_ip = get_real_ip(request)
-    logging.info(f"{client_ip} - {request.method} {request.url.path}")
+    # Sanitize all logged values to prevent log injection
+    raw_ip = get_real_ip(request)
+    client_ip = sanitize_for_log(raw_ip)
+    method = sanitize_for_log(request.method)
+    path = sanitize_for_log(request.url.path)
+    
+    logging.info(f"{client_ip} - {method} {path}")
     
     response = await call_next(request)
     return response
@@ -270,15 +339,17 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 @app.post("/api/auth/login")
 @limiter.limit("5/minute")
 async def login(request: Request, client_id: str = Form(..., max_length=100), api_key: str = Form(..., max_length=500)):
+    # Sanitize client_id for logging
+    safe_client_id = sanitize_for_log(client_id)
     check_rate_limit(f"login_{get_real_ip(request)}", limit=5, window=60)
     
-    if client_id in CLIENT_PERMISSIONS and api_key == HETZNER_API_KEY:
+    if client_id in CLIENT_PERMISSIONS and hmac.compare_digest(api_key, HETZNER_API_KEY):
         token = jwt.encode(
             {"client_id": client_id, "exp": datetime.utcnow() + timedelta(hours=24)},
             JWT_SECRET,
             algorithm="HS256"
         )
-        logging.info(f"Client logged in: {client_id}")
+        logging.info(f"Client logged in: {safe_client_id}")
         return {"token": token, "permissions": CLIENT_PERMISSIONS[client_id]}
     
     raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -433,7 +504,9 @@ async def get_journal_thought(
             if client_id and client_id != "demo":
                 result = censor_for_client(result, client_id)
             return result
-    return {"expanded_thought": ""}
+    
+    # Return 404 for non-existent entries instead of empty
+    raise HTTPException(status_code=404, detail="Entry not found")
 
 # ============== WEBSOCKET ==============
 
@@ -447,7 +520,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = Path(..., m
     
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        client_id = payload.get("client_id")
+        client_id = payload.get("client_id", "anonymous")
     except jwt.ExpiredSignatureError:
         await websocket.close(code=4002, reason="Token expired")
         return
@@ -455,11 +528,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = Path(..., m
         await websocket.close(code=4003, reason="Invalid token")
         return
     
-    await websocket.accept()
-    
-    lines = DEMO_LINES.get(session_id, DEMO_LINES["deploying"])
+    # Check connection limit before accepting
+    if not check_ws_rate_limit(client_id):
+        await websocket.close(code=4004, reason="Too many connections")
+        return
     
     try:
+        await websocket.accept()
+        
+        lines = DEMO_LINES.get(session_id, DEMO_LINES["deploying"])
+        
         for line in lines:
             await asyncio.sleep(line["delay"] / 1000)
             await websocket.send_json(line)
@@ -469,6 +547,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = Path(..., m
             await websocket.send_json({"type": "heartbeat", "text": ""})
     except WebSocketDisconnect:
         pass
+    finally:
+        release_ws_connection(client_id)
 
 # ============== HEALTH ==============
 

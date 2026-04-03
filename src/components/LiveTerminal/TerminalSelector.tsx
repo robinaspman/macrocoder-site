@@ -14,8 +14,6 @@ export function TerminalSelector({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  console.log('[Selector] Render, sessions length:', sessions.length, 'visibleIds:', visibleIds)
-
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -27,25 +25,17 @@ export function TerminalSelector({
   }, [])
 
   function toggleSession(id: string) {
-    console.log('[Selector] toggleSession:', id, 'current:', visibleIds)
     if (visibleIds.includes(id)) {
       if (visibleIds.length > 1) {
-        const newIds = visibleIds.filter(v => v !== id)
-        console.log('[Selector] Setting visibleIds:', newIds)
-        onChange(newIds)
+        onChange(visibleIds.filter(v => v !== id))
       }
     } else {
-      const newIds = [...visibleIds, id]
-      console.log('[Selector] Setting visibleIds:', newIds)
-      onChange(newIds)
+      onChange([...visibleIds, id])
     }
   }
 
   function setCount(n: number) {
     const sessionIds = sessions.slice(0, n).map(s => s.id)
-    console.log('[Selector] sessions slice(0,', n, '):', sessionIds)
-    console.log('[Selector] sessions total:', sessions.length)
-    console.log('[Selector] Setting visibleIds:', sessionIds)
     onChange(sessionIds)
   }
 

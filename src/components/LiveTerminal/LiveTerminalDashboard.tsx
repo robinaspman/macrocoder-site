@@ -34,7 +34,6 @@ export function LiveTerminalDashboard() {
   const [visibleIds, setVisibleIds] = useState<string[]>([])
 
   useEffect(() => {
-    console.log('[Dashboard] Using demo fallback (no API_URL)')
     // Always use demo data when no API configured
     const demo = TERMINAL_SESSIONS.map(s => ({
       id: s.id,
@@ -45,11 +44,8 @@ export function LiveTerminalDashboard() {
       color: s.color,
       description: s.description,
     }))
-    console.log('[Dashboard] Demo sessions:', demo.map(s => s.id))
     setSessions(demo)
-    const initialIds = demo.map((s: Session) => s.id)
-    console.log('[Dashboard] Setting initial visibleIds:', initialIds)
-    setVisibleIds(initialIds)
+    setVisibleIds(demo.map((s: Session) => s.id))
     // Use activity from demo data
     const activityData = ACTIVITY_LOG.slice(0, 15).map(a => ({
       time: a.time,

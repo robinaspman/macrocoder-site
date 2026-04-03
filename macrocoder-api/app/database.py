@@ -121,6 +121,16 @@ class Database:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    async def get_all_snapshots(self, limit: int = 50) -> list:
+        async with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT session_id, mode, command, status, description, created_at
+                   FROM snapshots ORDER BY created_at DESC LIMIT ?""",
+                (limit,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
     async def cleanup_old_snapshots(self, days: int = 30) -> int:
         async with self.get_conn() as conn:
             cursor = conn.cursor()

@@ -1,7 +1,5 @@
 const API_URL = import.meta.env.VITE_MACROCODER_URL || ''
 
-console.log('[API] VITE_MACROCODER_URL:', API_URL)
-
 // JWT token stored in localStorage after login
 function getToken(): string | null {
   return localStorage.getItem('macrocoder_token')
@@ -118,20 +116,15 @@ export async function getJournalThought(entryId: string) {
   return fetchWithApiKey(`/api/journal/${entryId}/thought`, { expanded_thought: '' })
 }
 
-export async function getLatestSnapshots(limit = 6) {
-  console.log('[API] getLatestSnapshots called, API_URL:', API_URL)
-  if (!API_URL) return { snapshots: [], source: 'demo' }
+export async function getLatestSnapshots(limit = 20) {
+  if (!API_URL) return { snapshots: [], source: 'demo', grouped: {} }
   
   try {
     const res = await fetch(`${API_URL}/api/snapshots/latest?limit=${limit}`)
-    console.log('[API] getLatestSnapshots response:', res.status)
-    if (!res.ok) return { snapshots: [], source: 'demo' }
-    const data = await res.json()
-    console.log('[API] getLatestSnapshots data:', data)
-    return data
-  } catch (e) {
-    console.log('[API] getLatestSnapshots error:', e)
-    return { snapshots: [], source: 'demo' }
+    if (!res.ok) return { snapshots: [], source: 'demo', grouped: {} }
+    return await res.json()
+  } catch {
+    return { snapshots: [], source: 'demo', grouped: {} }
   }
 }
 

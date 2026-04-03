@@ -624,9 +624,9 @@ async def get_snapshots(limit: int = Query(50, le=100), offset: int = Query(0, g
 
 
 @app.get("/api/snapshots/latest")
-async def get_latest_snapshots(limit: int = Query(6, le=20)):
-    """Get latest snapshots for the live terminal - always includes demo data, live snapshots added on top"""
-    snapshots = await db.get_latest_snapshots(limit=limit)
+async def get_latest_snapshots(limit: int = Query(20, le=50)):
+    """Get latest snapshots for the live terminal - returns all available grouped by mode"""
+    snapshots = await db.get_all_snapshots(limit=limit)
     
     demo_sessions = [
         {"session_id": "deploying", "mode": "deploy", "command": "macrocoder deploy --env production --region eu-w...", "status": "running", "description": "Zero-downtime production deployment"},
@@ -638,20 +638,25 @@ async def get_latest_snapshots(limit: int = Query(6, le=20)):
     ]
     
     if not snapshots:
-        return {"snapshots": demo_sessions[:limit], "source": "demo"}
+        return {"snapshots": demo_sessions, "source": "demo", "grouped": {}}
     
-    demo_map = {s["session_id"]: s for s in demo_sessions}
-    result = []
-    
+    grouped = {}
     for snap in snapshots:
-        result.append(snap)
-        demo_map.pop(snap.get("session_id", ""), None)
+        mode = snap.get("mode", "unknown")
+        if mode not in grouped:
+            grouped[mode] = []
+        grouped[mode].append(snap)
     
-    for remaining in demo_map.values():
-        if len(result) < limit:
-            result.append(remaining)
+    demo_map = {s["mode"]: s for s in demo_sessions}
+    for mode, demo_sess in demo_map.items():
+        if mode not in grouped:
+            grouped[mode] = [demo_sess]
+        else:
+            grouped[mode].insert(0, demo_sess)
     
-    return {"snapshots": result[:limit], "source": "live"}
+    all_snapshots = snapshots + [s for s in demo_sessions if s["mode"] not in grouped]
+    
+    return {"snapshots": all_snapshots, "source": "live" if snapshots else "demo", "grouped": grouped}
 
 
 @app.get("/api/snapshots/{session_id}")

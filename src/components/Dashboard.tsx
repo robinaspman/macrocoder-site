@@ -384,25 +384,25 @@ export function Dashboard() {
   }
 
   return (
-    <div className="h-screen bg-[#1a1714] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
+    <div className="h-screen bg-[#2a2520] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
       {/* Header */}
-      <header className="border-b border-[#3a2a1a] h-[48px] flex items-center px-4 flex-shrink-0">
+      <header className="border-b border-[#5a4a38] h-[48px] flex items-center px-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
           <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
           <span className="h-3 w-3 rounded-full bg-[#28c840]" />
         </div>
-        <span className="ml-3 text-[11px] uppercase tracking-[0.3em] text-[#b09060]">MacroCoder</span>
+        <span className="ml-3 text-[11px] uppercase tracking-[0.3em] text-[#c0a880]">MacroCoder</span>
         <div className="ml-auto flex items-center gap-4">
-          <span className="text-[11px] text-[#6a5a4a]">{stats.total} conversations · {stats.hired} hired</span>
+          <span className="text-[11px] text-[#9a8a70]">{stats.total} conversations · {stats.hired} hired</span>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} border-r border-[#3a2a1a] bg-[#1e1810] flex flex-col flex-shrink-0 transition-all duration-200 overflow-hidden`}>
+        <aside className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} border-r border-[#5a4a38] bg-[#332d24] flex flex-col flex-shrink-0 transition-all duration-200 overflow-hidden`}>
           {/* New conversation button */}
-          <div className="p-3 border-b border-[#3a2a1a]">
+          <div className="p-3 border-b border-[#5a4a38]">
             <button
               onClick={createConversation}
               className="w-full flex items-center justify-center gap-2 h-[36px] rounded-lg bg-[#a66e1b] text-[13px] font-medium text-[#1b1106] transition hover:brightness-110"
@@ -413,15 +413,15 @@ export function Dashboard() {
           </div>
 
           {/* Search */}
-          <div className="p-3 border-b border-[#3a2a1a]">
-            <div className="flex items-center gap-2 rounded-lg border border-[#4a3520] bg-[#251c14] px-3 h-[32px]">
-              <Search className="h-3.5 w-3.5 text-[#6a5a4a]" />
+          <div className="p-3 border-b border-[#5a4a38]">
+            <div className="flex items-center gap-2 rounded-lg border border-[#6a5a48] bg-[#3d362c] px-3 h-[32px]">
+              <Search className="h-3.5 w-3.5 text-[#9a8a70]" />
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search..."
-                className="flex-1 bg-transparent text-[12px] text-[#c0a070] outline-none placeholder:text-[#5a4a3a]"
+                className="flex-1 bg-transparent text-[12px] text-[#d0b890] outline-none placeholder:text-[#7a6a58]"
               />
             </div>
           </div>
@@ -430,8 +430,8 @@ export function Dashboard() {
           <div className="flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
               <div className="p-6 text-center">
-                <MessageSquare className="h-8 w-8 text-[#4a3a2a] mx-auto mb-2" />
-                <p className="text-[12px] text-[#6a5a4a]">No conversations yet</p>
+                <MessageSquare className="h-8 w-8 text-[#7a6a58] mx-auto mb-2" />
+                <p className="text-[12px] text-[#9a8a70]">No conversations yet</p>
               </div>
             ) : (
               filteredConversations.map(conv => {
@@ -444,17 +444,17 @@ export function Dashboard() {
                     onClick={() => { setActiveId(conv.id); setShowAnalysis(false) }}
                     className={`group flex items-start gap-2.5 px-3 py-2.5 cursor-pointer transition-colors border-l-2 ${
                       isActive
-                        ? 'bg-[#2a2218] border-[#a66e1b]'
-                        : 'border-transparent hover:bg-[#251c14]'
+                        ? 'bg-[#3a3428] border-[#a66e1b]'
+                        : 'border-transparent hover:bg-[#3d362c]'
                     }`}
                   >
-                    <ModeIcon className="h-3.5 w-3.5 text-[#8b673f] mt-0.5 flex-shrink-0" />
+                    <ModeIcon className="h-3.5 w-3.5 text-[#b09870] mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className={`text-[13px] truncate ${isActive ? 'text-[#f0ebe5]' : 'text-[#c0a070]'}`}>
+                        <span className={`text-[13px] truncate ${isActive ? 'text-[#f5f0ea]' : 'text-[#d0b890]'}`}>
                           {conv.title}
                         </span>
-                        <span className="text-[10px] text-[#5a4a3a] flex-shrink-0">{formatTime(conv.updatedAt)}</span>
+                        <span className="text-[10px] text-[#7a6a58] flex-shrink-0">{formatTime(conv.updatedAt)}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border ${STATUS_COLORS[conv.status]}`}>
@@ -467,14 +467,14 @@ export function Dashboard() {
                         )}
                       </div>
                       {lastMsg && (
-                        <p className="text-[11px] text-[#6a5a4a] truncate mt-1">
+                        <p className="text-[11px] text-[#9a8a70] truncate mt-1">
                           {lastMsg.role === 'user' ? 'You: ' : ''}{lastMsg.content}
                         </p>
                       )}
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); deleteConversation(conv.id) }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#5a4a3a] hover:text-red-400 transition flex-shrink-0 mt-1"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-[#7a6a58] hover:text-red-400 transition flex-shrink-0 mt-1"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -485,19 +485,19 @@ export function Dashboard() {
           </div>
 
           {/* Stats footer */}
-          <div className="border-t border-[#3a2a1a] p-3">
+          <div className="border-t border-[#5a4a38] p-3">
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center">
-                <p className="text-[16px] font-bold text-[#f0ebe5]">{stats.total}</p>
-                <p className="text-[9px] uppercase tracking-wider text-[#6a5a4a]">Total</p>
+                <p className="text-[16px] font-bold text-[#f5f0ea]">{stats.total}</p>
+                <p className="text-[9px] uppercase tracking-wider text-[#9a8a70]">Total</p>
               </div>
               <div className="text-center">
                 <p className="text-[16px] font-bold text-blue-400">{stats.new}</p>
-                <p className="text-[9px] uppercase tracking-wider text-[#6a5a4a]">New</p>
+                <p className="text-[9px] uppercase tracking-wider text-[#9a8a70]">New</p>
               </div>
               <div className="text-center">
                 <p className="text-[16px] font-bold text-green-400">{stats.hired}</p>
-                <p className="text-[9px] uppercase tracking-wider text-[#6a5a4a]">Hired</p>
+                <p className="text-[9px] uppercase tracking-wider text-[#9a8a70]">Hired</p>
               </div>
             </div>
           </div>
@@ -509,9 +509,9 @@ export function Dashboard() {
             /* Empty state */
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <Terminal className="h-16 w-16 text-[#3a2a1a] mx-auto mb-4" />
-                <p className="text-[20px] text-[#9a8060] mb-2">No conversation selected</p>
-                <p className="text-[14px] text-[#6a5a4a] mb-6">Create a new job or select one from the sidebar</p>
+                <Terminal className="h-16 w-16 text-[#7a6a58] mx-auto mb-4" />
+                <p className="text-[20px] text-[#c0a880] mb-2">No conversation selected</p>
+                <p className="text-[14px] text-[#9a8a70] mb-6">Create a new job or select one from the sidebar</p>
                 <button
                   onClick={createConversation}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#a66e1b] text-[14px] font-medium text-[#1b1106] px-5 h-[40px] transition hover:brightness-110"
@@ -524,21 +524,21 @@ export function Dashboard() {
           ) : (
             <>
               {/* Conversation header */}
-              <div className="border-b border-[#3a2a1a] px-4 py-2.5 flex items-center gap-3 flex-shrink-0">
+              <div className="border-b border-[#5a4a38] px-4 py-2.5 flex items-center gap-3 flex-shrink-0">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-1 rounded hover:bg-[#2a1e14] text-[#9a8060] transition"
+                  className="p-1 rounded hover:bg-[#3d362c] text-[#c0a880] transition"
                 >
                   {sidebarOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-medium text-[#f0ebe5] truncate">{activeConversation.title}</span>
+                    <span className="text-[14px] font-medium text-[#f5f0ea] truncate">{activeConversation.title}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border ${STATUS_COLORS[activeConversation.status]}`}>
                       {STATUS_LABELS[activeConversation.status]}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-[#6a5a4a]">
+                  <div className="flex items-center gap-3 text-[11px] text-[#9a8a70]">
                     {activeConversation.client && <span>{activeConversation.client}</span>}
                     {activeConversation.budget && <span>{activeConversation.budget}</span>}
                     {activeConversation.doability > 0 && (
@@ -557,7 +557,7 @@ export function Dashboard() {
                       className={`h-5 w-5 rounded flex items-center justify-center text-[9px] transition ${
                         activeConversation.status === s
                           ? 'bg-[#a66e1b] text-[#1b1106]'
-                          : 'bg-[#251c14] text-[#5a4a3a] hover:text-[#9a8060]'
+                          : 'bg-[#3d362c] text-[#7a6a58] hover:text-[#c0a880]'
                       }`}
                     >
                       {s[0].toUpperCase()}
@@ -574,7 +574,7 @@ export function Dashboard() {
                       <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                         {/* Avatar */}
                         <div className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          msg.role === 'user' ? 'bg-[#a66e1b]' : 'bg-[#2a2218] border border-[#4a3520]'
+                          msg.role === 'user' ? 'bg-[#a66e1b]' : 'bg-[#3a3428] border border-[#6a5a48]'
                         }`}>
                           {msg.role === 'user' ? (
                             <span className="text-[11px] font-bold text-[#1b1106]">Y</span>
@@ -586,13 +586,13 @@ export function Dashboard() {
                         {/* Message bubble */}
                         <div className={`rounded-xl px-4 py-3 max-w-[80%] ${
                           msg.role === 'user'
-                            ? 'bg-[#2a2218] border border-[#4a3520]'
+                            ? 'bg-[#3a3428] border border-[#6a5a48]'
                             : 'bg-[#251c14] border border-[#3a2a1a]'
                         }`}>
-                          <div className="text-[13px] leading-relaxed text-[#d0c0a0] whitespace-pre-wrap">
+                          <div className="text-[13px] leading-relaxed text-[#e0d0b8] whitespace-pre-wrap">
                             {msg.content.split('\n').map((line, i) => {
                               if (line.startsWith('**') && line.endsWith('**')) {
-                                return <p key={i} className="font-semibold text-[#f0ebe5] my-1">{line.replace(/\*\*/g, '')}</p>
+                                return <p key={i} className="font-semibold text-[#f5f0ea] my-1">{line.replace(/\*\*/g, '')}</p>
                               }
                               if (line.startsWith('• ') || line.startsWith('- ')) {
                                 return <p key={i} className="ml-2 my-0.5">{line}</p>

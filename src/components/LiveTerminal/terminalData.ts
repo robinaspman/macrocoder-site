@@ -1,5 +1,5 @@
 export interface TerminalLine {
-  type: 'command' | 'output' | 'error' | 'success' | 'info' | 'credential' | 'warning'
+  type: 'command' | 'output' | 'error' | 'success' | 'info' | 'credential' | 'warning' | 'censored'
   text: string
   delay: number
 }
@@ -13,6 +13,15 @@ export interface TerminalSession {
   lines: TerminalLine[]
   color: string
   description: string
+}
+
+export interface JournalEntry {
+  id: string
+  day: number
+  time: string
+  title: string
+  body: string
+  expandedThought: string
 }
 
 export const TERMINAL_SESSIONS: TerminalSession[] = [
@@ -263,36 +272,78 @@ export const ACTIVITY_LOG = [
   { time: '22m ago', event: 'Added real-time subscriptions', detail: 'WebSocket via FastAPI + React', status: 'done', sessionId: 'building' },
 ]
 
-export const JOURNAL_ENTRIES = [
+export const JOURNAL_ENTRIES: JournalEntry[] = [
   {
+    id: 'j7-1',
     day: 7,
     time: '14:22',
     title: 'Zero-downtime strategy locked in',
-    body: "Client's on a managed Postgres with 2 replicas. I can do a blue-green swap — spin the new version alongside the old, run health checks, then flip the load balancer. No maintenance window needed. The avatar_url migration is additive so it won't break the running v2.3.",
+    body: "Client's on a managed Postgres with 2 replicas. I can do a blue-green swap — spin the new version alongside the old, run health checks, then flip the load balancer.",
+    expandedThought: 'The blue-green approach is optimal here. Since they have 2 replicas, we spin up v2.4 in parallel, verify all health checks pass (API, DB, cache), then atomically flip the load balancer. No downtime. The avatar_url migration is additive so v2.3 continues working if needed for rollback.',
   },
   {
+    id: 'j7-2',
     day: 7,
     time: '14:18',
     title: 'Decided against rolling deploy',
-    body: "Considered a rolling deploy but the client only has 2 instances. With rolling you'd have v2.3 and v2.4 serving simultaneously — risky with the new DB column. Blue-green is cleaner: all-or-nothing cutover after verification.",
+    body: "Considered a rolling deploy but the client only has 2 instances. With rolling you'd have v2.3 and v2.4 serving simultaneously — risky with the new DB column.",
+    expandedThought: '████████████████ rolling deploy carries compatibility risk ████████████████ With only 2 instances, a gradual rollout means v2.4 and v2.3 handle requests concurrently. If v2.4 tries to read avatar_url before v2.3 writes it, we get nulls. Blue-green eliminates this race.',
   },
   {
+    id: 'j6-1',
     day: 6,
     time: '23:41',
     title: 'CDN cache invalidation needs thought',
-    body: "The old bundle is cached at 47 edge locations. If I deploy the new API before invalidating the CDN, users will hit the new endpoints with the old client code. Need to deploy API first, verify backward compat, then push the new bundle and invalidate.",
+    body: "The old bundle is cached at 47 edge locations. If I deploy the new API before invalidating the CDN, users will hit the new endpoints with the old client code.",
+    expandedThought: '████████████████ deployment sequence ████████████████ The deployment order matters: (1) Deploy API first, (2) Run backwards-compat tests, (3) Purge CDN cache with tag-based invalidation, (4) Deploy new client bundle. Reversing steps 1-3 causes old client → new API version mismatch.',
   },
   {
+    id: 'j6-2',
     day: 6,
     time: '21:15',
     title: 'FastAPI dependency injection refactored',
-    body: "The get_db() function was creating a new pool per request. Moved to a lifespan handler so the pool is shared. Cold starts went from 800ms to 12ms. This was the root cause of the 500s during traffic spikes.",
+    body: "The get_db() function was creating a new pool per request. Moved to a lifespan handler so the pool is shared. Cold starts went from 800ms to 12ms.",
+    expandedThought: '████████████████ connection pooling optimization ████████████████ By moving DB pool initialization to FastAPI lifespan context, we create the pool once at startup instead of 47x per second. Each request now grabs a connection from the shared pool (~1ms) instead of provisioning fresh (150ms+). This was causing cascading 500s during traffic spikes.',
   },
   {
+    id: 'j5-1',
     day: 5,
     time: '16:30',
     title: 'n8n webhook integration planned',
-    body: "Client wants Slack notifications on deploy. Setting up n8n workflow: GitHub webhook → n8n → Slack. Also adding a secondary path that logs to their internal audit table via FastAPI endpoint.",
+    body: "Client wants Slack notifications on deploy. Setting up n8n workflow: GitHub webhook → n8n → Slack. Also adding a secondary path that logs to their internal audit table.",
+    expandedThought: '████████████████ n8n webhook architecture ████████████████ GitHub sends push events to n8n HTTP trigger. n8n parses commit message and branch, then routes: if main + "release" tag → Slack notification + audit log. Otherwise silent. Stores deployment metadata (commit, actor, timestamp) in their Postgres for compliance.',
+  },
+  {
+    id: 'j4-1',
+    day: 4,
+    time: '10:15',
+    title: 'Client cache strategy finalized',
+    body: "Implemented multi-tier caching: Redis for hot sessions (1h TTL), Vercel KV for distributed cache, browser cache with ETag validation.",
+    expandedThought: '████████████████ caching layers ████████████████ Layer 1: Browser (Cache-Control: max-age=3600, ETag). Layer 2: Vercel Edge Network (1h). Layer 3: Redis (sessions, auth tokens, 60m). Layer 4: DB. Misses cascade down. Cache tags on mutations ensure instant invalidation without key rehashing.',
+  },
+  {
+    id: 'j3-1',
+    day: 3,
+    time: '09:42',
+    title: 'Load testing revealed N+1 in analytics',
+    body: "During 1k concurrent user simulation, discovered analytics queries were loading user data one-by-one. Refactored to batch queries with SQL ANY().",
+    expandedThought: '████████████████ query optimization ████████████████ Original: for each revenue record, SELECT user WHERE id=X. Under load: 47k individual queries. New: SELECT * FROM users WHERE id = ANY(ARRAY[...]) batches 47k into 1. Query time 340ms → 8ms. Confirmed with EXPLAIN ANALYZE before/after.',
+  },
+  {
+    id: 'j2-1',
+    day: 2,
+    time: '16:20',
+    title: 'Stripe webhook idempotency keys',
+    body: "Webhook retries were double-charging users. Added idempotency key tracking in a separate table indexed on (webhook_id, timestamp).",
+    expandedThought: '████████████████ idempotency implementation ████████████████ Stripe resends webhooks on timeout. Without dedup: same charge_succeeded event processed twice = duplicate invoice. Solution: store idempotency_key on receipt of event, check before processing. Return 200 OK if already processed. Prevents double-charges even with retries.',
+  },
+  {
+    id: 'j1-1',
+    day: 1,
+    time: '11:00',
+    title: 'Project kickoff with client requirements',
+    body: "Client needs zero-downtime deploy pipeline, real-time analytics, and audit logging for compliance. Scoped: Next.js frontend, FastAPI backend, n8n workflows.",
+    expandedThought: 'Project architecture: Next.js 16 App Router + Server Components for zero-JS pages. FastAPI with async handlers + connection pooling for analytics. PostgreSQL with audit triggers. n8n for webhook orchestration. Target: 99.95% uptime, <50ms p99 latency. Compliance: HIPAA-grade audit logs.',
   },
 ]
 

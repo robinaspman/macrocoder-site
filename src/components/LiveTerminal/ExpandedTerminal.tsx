@@ -13,6 +13,8 @@ export function ExpandedTerminal({
 }) {
   const session = TERMINAL_SESSIONS.find(s => s.id === sessionId)
   const [activeTab, setActiveTab] = useState<'journal' | 'activity'>('journal')
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null)
+  const [sortedLog, setSortedLog] = useState(ACTIVITY_LOG)
 
   if (!session) return null
 
@@ -52,7 +54,11 @@ export function ExpandedTerminal({
 
           {/* Terminal */}
           <div className="flex-1 min-h-0">
-            <TerminalPanel session={session} />
+            {selectedJournalId ? (
+              <JournalExpandedView journalId={selectedJournalId} onClose={() => setSelectedJournalId(null)} />
+            ) : (
+              <TerminalPanel session={session} />
+            )}
           </div>
         </div>
 
@@ -85,9 +91,22 @@ export function ExpandedTerminal({
           {/* Tab content */}
           <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'journal' ? (
-              <JournalTab />
+              <JournalTab onSelectEntry={setSelectedJournalId} />
             ) : (
-              <ActivityTab onSwitch={onSwitch} />
+              <ActivityTab
+                sortedLog={sortedLog}
+                onSwitch={(id) => {
+                  const selected = ACTIVITY_LOG.find(e => e.sessionId === id)
+                  if (selected) {
+                    const reordered = [
+                      selected,
+                      ...sortedLog.filter(e => e.sessionId !== id),
+                    ]
+                    setSortedLog(reordered)
+                  }
+                  onSwitch(id)
+                }}
+              />
             )}
           </div>
         </div>
@@ -96,44 +115,50 @@ export function ExpandedTerminal({
   )
 }
 
-function JournalTab() {
+function JournalTab({ onSelectEntry }: { onSelectEntry: (id: string) => void }) {
   return (
     <div>
       <p className="text-[11px] text-[#5a7a7a] font-mono mb-4">// journal</p>
       <div className="space-y-6">
-        {JOURNAL_ENTRIES.map((entry, i) => (
-          <div key={i} className="relative">
+        {JOURNAL_ENTRIES.map((entry) => (
+          <button
+            key={entry.id}
+            onClick={() => onSelectEntry(entry.id)}
+            className="flex items-start gap-2 w-full text-left hover:opacity-80 transition-opacity"
+          >
             {/* Day marker */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="h-2 w-2 rounded-full bg-[#e0a040]" />
-              <span className="text-[11px] text-[#e0a040] font-medium">
-                Day {entry.day}
-              </span>
-              <span className="text-[10px] text-[#4a6a6a]">{entry.time}</span>
+            <div className="flex-shrink-0">
+              <span className="h-2 w-2 rounded-full bg-[#e0a040] block mt-1" />
             </div>
 
             {/* Entry content */}
-            <div className="ml-4">
-              <p className="text-[13px] text-[#d0dede] font-semibold leading-snug mb-1">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] text-[#e0a040] font-medium">
+                  Day {entry.day}
+                </span>
+                <span className="text-[10px] text-[#4a6a6a]">{entry.time}</span>
+              </div>
+              <p className="text-[12px] text-[#d0dede] font-semibold leading-snug mb-1">
                 {entry.title}
               </p>
-              <p className="text-[11px] text-[#6a8a8a] leading-relaxed [font-family:'JetBrains_Mono',monospace]">
+              <p className="text-[10px] text-[#6a8a8a] leading-relaxed">
                 {entry.body}
               </p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
   )
 }
 
-function ActivityTab({ onSwitch }: { onSwitch: (id: string) => void }) {
+function ActivityTab({ sortedLog, onSwitch }: { sortedLog: typeof ACTIVITY_LOG; onSwitch: (id: string) => void }) {
   return (
     <div>
       <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-4">Activity Log</p>
       <div className="space-y-2">
-        {ACTIVITY_LOG.map((entry, i) => (
+        {sortedLog.map((entry, i) => (
           <button
             key={i}
             onClick={() => onSwitch(entry.sessionId)}
@@ -149,6 +174,47 @@ function ActivityTab({ onSwitch }: { onSwitch: (id: string) => void }) {
               <p className="text-[10px] text-[#4a6a6a] mt-0.5">{entry.time}</p>
             </div>
           </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function JournalExpandedView({ journalId, onClose }: { journalId: string; onClose: () => void }) {
+  const entry = JOURNAL_ENTRIES.find(e => e.id === journalId)
+  if (!entry) return null
+
+  const lines = entry.expandedThought.split('\n').map((text) => ({
+    type: text.includes('████') ? 'censored' as const : 'info' as const,
+    text,
+    delay: 100,
+  }))
+
+  return (
+    <div className="bg-[#111a1a] rounded-lg border border-[#1e2e2e] overflow-hidden flex flex-col h-full">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e2e2e]">
+        <button
+          onClick={onClose}
+          className="text-[11px] text-[#e0a040] hover:text-[#f0b050] transition-colors"
+        >
+          &larr; Back to terminal
+        </button>
+        <span className="text-[12px] font-mono text-[#5a7a7a]">
+          Thought Process — Day {entry.day} {entry.time}
+        </span>
+      </div>
+
+      <div className="flex-1 p-4 overflow-y-auto [font-family:'JetBrains_Mono',monospace] text-[12px] leading-relaxed">
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className="whitespace-pre mb-1"
+            style={{
+              color: line.type === 'censored' ? '#6a8a8a' : '#60a5fa',
+            }}
+          >
+            {line.text}
+          </div>
         ))}
       </div>
     </div>

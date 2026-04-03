@@ -10,6 +10,7 @@ const LINE_COLORS: Record<string, string> = {
   info: '#60a5fa',
   warning: '#f59e0b',
   credential: '#f97316',
+  censored: '#6a8a8a',
 }
 
 function TerminalText({ line }: { line: TerminalLine }) {

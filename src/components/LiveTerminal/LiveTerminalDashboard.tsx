@@ -43,10 +43,11 @@ export function LiveTerminalDashboard() {
       color: s.color,
       description: s.description,
     }))
-    console.log('[Dashboard] Demo sessions:', demo)
-    console.log('[Dashboard] Setting initial visibleIds:', demo.map((s: Session) => s.id))
+    console.log('[Dashboard] Demo sessions:', demo.map(s => s.id))
     setSessions(demo)
-    setVisibleIds(demo.map((s: Session) => s.id))
+    const initialIds = demo.map((s: Session) => s.id)
+    console.log('[Dashboard] Setting initial visibleIds:', initialIds)
+    setVisibleIds(initialIds)
     // Use activity from demo data
     const activityData = ACTIVITY_LOG.slice(0, 15).map(a => ({
       time: a.time,
@@ -96,7 +97,6 @@ export function LiveTerminalDashboard() {
             visibleIds={visibleIds}
             onChange={setVisibleIds}
           />
-          <div>debug: sessions={sessions.length}, terminalSessions={terminalSessions.length}</div>
         </div>
         <div className="ml-auto flex items-center gap-4">
           <span className="text-[11px] text-[#5a7a7a]">

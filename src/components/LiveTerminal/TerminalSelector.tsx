@@ -14,6 +14,8 @@ export function TerminalSelector({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+  console.log('[Selector] Render, sessions length:', sessions.length, 'visibleIds:', visibleIds)
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {

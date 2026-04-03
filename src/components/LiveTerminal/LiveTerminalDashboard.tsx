@@ -5,6 +5,7 @@ import { StatsSidebar } from './StatsSidebar'
 import { ExpandedTerminal } from './ExpandedTerminal'
 import { TerminalSelector } from './TerminalSelector'
 import { TERMINAL_SESSIONS, ACTIVITY_LOG } from './terminalData'
+import type { TerminalLine } from './terminalData'
 
 interface Session {
   id: string
@@ -14,6 +15,7 @@ interface Session {
   command: string
   color: string
   description: string
+  lines?: TerminalLine[]
 }
 
 interface Activity {
@@ -93,7 +95,7 @@ export function LiveTerminalDashboard() {
             LIVE
           </span>
           <TerminalSelector
-            sessions={terminalSessions}
+            sessions={sessions as any}
             visibleIds={visibleIds}
             onChange={setVisibleIds}
           />

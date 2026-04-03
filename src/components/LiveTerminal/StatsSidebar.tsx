@@ -1,6 +1,20 @@
-import { ACTIVITY_LOG } from './terminalData'
+interface ActivityEntry {
+  time: string
+  event: string
+  detail: string
+  status: string
+  sessionId: string
+}
 
-export function StatsSidebar({ onExpand }: { onExpand: (id: string) => void }) {
+export function StatsSidebar({ 
+  onExpand, 
+  activity = [] 
+}: { 
+  onExpand: (id: string) => void
+  activity?: ActivityEntry[]
+}) {
+  const entries = activity.length > 0 ? activity : []
+
   return (
     <div className="w-[280px] h-[calc(100vh-56px)] border-l border-[#1e2e2e] bg-[#0e1a1c] flex flex-col flex-shrink-0">
       <div className="px-4 py-3 border-b border-[#1e2e2e]">
@@ -8,7 +22,7 @@ export function StatsSidebar({ onExpand }: { onExpand: (id: string) => void }) {
       </div>
       <div className="flex-1 p-3 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-1.5">
-          {ACTIVITY_LOG.map((entry, i) => (
+          {entries.map((entry, i) => (
             <button
               key={entry.sessionId + i}
               onClick={() => onExpand(entry.sessionId)}

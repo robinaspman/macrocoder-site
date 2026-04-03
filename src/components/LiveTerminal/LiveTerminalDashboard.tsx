@@ -1,17 +1,59 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TerminalGrid } from './TerminalPanel'
 import { StatsSidebar } from './StatsSidebar'
 import { ExpandedTerminal } from './ExpandedTerminal'
 import { TerminalSelector } from './TerminalSelector'
-import { TERMINAL_SESSIONS } from './terminalData'
+import { getSessions, getActivity } from '../../lib/macrocoderApi'
+
+interface Session {
+  id: string
+  mode: string
+  icon: string
+  status: string
+  command: string
+  color: string
+  description: string
+}
+
+interface Activity {
+  time: string
+  event: string
+  detail: string
+  status: string
+  sessionId: string
+}
+
+interface Activity {
+  time: string
+  event: string
+  detail: string
+  status: string
+  sessionId: string
+}
 
 export function LiveTerminalDashboard() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [visibleIds, setVisibleIds] = useState<string[]>(TERMINAL_SESSIONS.map(s => s.id))
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [activity, setActivity] = useState<Activity[]>([])
+  const [visibleIds, setVisibleIds] = useState<string[]>([])
 
-  const visibleSessions = TERMINAL_SESSIONS.filter(s => visibleIds.includes(s.id))
+  useEffect(() => {
+    getSessions().then(s => {
+      setSessions(s)
+      setVisibleIds(s.map((_: Session) => _.id))
+    })
+    getActivity().then(setActivity)
+  }, [])
+
+  const visibleSessions = sessions.filter(s => visibleIds.includes(s.id))
+
+  const terminalSessions = visibleSessions.map(s => ({
+    ...s,
+    status: s.status as 'running' | 'completed' | 'idle',
+    lines: [],
+  }))
 
   return (
     <div className="h-screen bg-[#0a1214] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
@@ -36,7 +78,7 @@ export function LiveTerminalDashboard() {
             LIVE
           </span>
           <TerminalSelector
-            sessions={TERMINAL_SESSIONS}
+            sessions={terminalSessions}
             visibleIds={visibleIds}
             onChange={setVisibleIds}
           />
@@ -54,7 +96,7 @@ export function LiveTerminalDashboard() {
         <div className="flex-1 flex flex-col p-8">
           <div className="max-w-[1400px] mx-auto w-full flex flex-col flex-1 min-h-0">
             {/* Hero text */}
-            <div className="mb-8 flex-shrink-0 max-w-[720px]">
+            <div className="mb-6 flex-shrink-0 max-w-[720px]">
               <h1 className="text-[32px] font-bold leading-tight tracking-tight">
                 <span className="text-[#e0a040]" style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}>Macrocoder.</span>{' '}
                 <span className="text-white">Multiple Agents. Real Execution.</span>
@@ -68,7 +110,7 @@ export function LiveTerminalDashboard() {
             </div>
 
             <div className="flex-1 min-h-0">
-              <TerminalGrid sessions={visibleSessions} onExpand={setExpandedId} />
+              <TerminalGrid sessions={terminalSessions} onExpand={setExpandedId} />
             </div>
 
             {/* Footer */}
@@ -81,7 +123,7 @@ export function LiveTerminalDashboard() {
 
         {/* Activity log sidebar */}
         <div className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0 min-h-0`}>
-          <StatsSidebar onExpand={setExpandedId} />
+          <StatsSidebar onExpand={setExpandedId} activity={activity} />
         </div>
 
         {/* Chevron toggle button */}

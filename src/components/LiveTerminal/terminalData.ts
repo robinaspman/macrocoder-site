@@ -24,6 +24,25 @@ export interface JournalEntry {
   expandedThought: string
 }
 
+export interface ActivityEntry {
+  time: string
+  event: string
+  detail: string
+  status: string
+  sessionId: string
+}
+
+export interface LiveStats {
+  uptime: string
+  response_time: string
+  deployments: number
+  files_changed: number
+  tests_passing: string
+  migrations: number
+  security_score: string
+  active_agents: number
+}
+
 export const TERMINAL_SESSIONS: TerminalSession[] = [
   {
     id: 'deploying',

@@ -47,6 +47,8 @@ function TerminalText({ line }: { line: TerminalLine }) {
   return <span style={{ color: LINE_COLORS[line.type] }}>{line.text}</span>
 }
 
+export { TerminalText, LINE_COLORS }
+
 export function TerminalPanel({
   session,
   onClick,
@@ -102,21 +104,26 @@ export function TerminalPanel({
     return (
       <div
         onClick={onClick}
-        className="bg-[#1a1510] rounded-xl border border-[#3a2a1a] overflow-hidden cursor-pointer transition-all duration-200 hover:border-[#a66e1b]/50 hover:shadow-lg hover:shadow-[#a66e1b]/5 group"
+        className="bg-[#111a1a] rounded-lg border border-[#1e2e2e] overflow-hidden cursor-pointer transition-all duration-200 hover:border-[#e0a040]/50 hover:shadow-lg hover:shadow-[#e0a040]/10 group flex flex-col"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a1e14]">
+        {/* Header bar with traffic lights */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e2e2e]">
           <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${statusColor}`} />
-            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: session.color }}>
+            <div className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
+              <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
+              <span className="h-2 w-2 rounded-full bg-[#28c840]" />
+            </div>
+            <span className="text-[10px] opacity-60">{session.icon}</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: session.color }}>
               {session.mode}
             </span>
           </div>
-          <span className="text-[10px] text-[#5a4a3a] font-mono">{session.command.slice(0, 30)}...</span>
+          <span className={`h-2 w-2 rounded-full ${statusColor}`} />
         </div>
 
         {/* Terminal content */}
-        <div ref={scrollRef} className="p-3 h-[140px] overflow-y-auto [font-family:'JetBrains_Mono',monospace] text-[11px] leading-relaxed scrollbar-thin">
+        <div ref={scrollRef} className="p-3 h-[160px] overflow-y-auto [font-family:'JetBrains_Mono',monospace] text-[11px] leading-relaxed scrollbar-thin">
           {visibleLines.map((line, i) => (
             <div key={i} className="whitespace-pre">
               <TerminalText line={line} />
@@ -127,13 +134,10 @@ export function TerminalPanel({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-3 py-1.5 border-t border-[#2a1e14] flex items-center justify-between">
-          <span className="text-[9px] text-[#5a4a3a] uppercase tracking-wider">
-            {visibleLines.length}/{session.lines.length} lines
-          </span>
-          <span className="text-[9px] text-[#5a4a3a] opacity-0 group-hover:opacity-100 transition-opacity">
-            Click to expand →
+        {/* Footer description */}
+        <div className="px-3 py-2 border-t border-[#1e2e2e] mt-auto">
+          <span className="text-[11px] text-[#6a7a7a]">
+            {session.description}
           </span>
         </div>
       </div>
@@ -141,19 +145,24 @@ export function TerminalPanel({
   }
 
   return (
-    <div className="bg-[#1a1510] rounded-xl border border-[#3a2a1a] overflow-hidden flex flex-col h-full">
+    <div className="bg-[#111a1a] rounded-lg border border-[#1e2e2e] overflow-hidden flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#2a1e14]">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e2e2e]">
         <div className="flex items-center gap-3">
-          <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-          <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: session.color }}>
-            {session.mode}
+          <div className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+          </div>
+          <span className="text-[10px]">{session.icon}</span>
+          <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: session.color }}>
+            AGENT: {session.mode}
           </span>
-          <span className="text-[11px] text-[#5a4a3a] font-mono">{session.command}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-[#5a4a3a] font-mono">
-            {visibleLines.length}/{session.lines.length} lines
+          <span className={`h-2 w-2 rounded-full ${statusColor}`} />
+          <span className="text-[10px] uppercase tracking-wider" style={{ color: isComplete ? '#6b7280' : '#22c55e' }}>
+            {isComplete ? 'DONE' : 'LIVE'}
           </span>
         </div>
       </div>

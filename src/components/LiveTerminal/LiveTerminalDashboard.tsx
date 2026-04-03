@@ -9,16 +9,16 @@ export function LiveTerminalDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   return (
-    <div className="h-screen bg-[#050403] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
+    <div className="h-screen bg-[#0a1214] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
       {/* Header */}
-      <header className="border-b border-[#3a2a1a] h-[56px] flex items-center px-6 flex-shrink-0">
+      <header className="border-b border-[#1e2e2e] h-[56px] flex items-center px-6 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
             <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
             <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           </div>
-          <span className="text-[13px] uppercase tracking-[0.2em] text-[#c0a880] font-semibold">
+          <span className="text-[13px] uppercase tracking-[0.2em] text-[#e0a040] font-semibold">
             MacroCoder
           </span>
         </div>
@@ -32,7 +32,7 @@ export function LiveTerminalDashboard() {
           </span>
         </div>
         <div className="ml-auto flex items-center gap-4">
-          <span className="text-[11px] text-[#9a8a70]">
+          <span className="text-[11px] text-[#5a7a7a]">
             1 agent · 6 modes · Working live
           </span>
         </div>
@@ -40,27 +40,44 @@ export function LiveTerminalDashboard() {
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Terminal grid */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Terminal area */}
+        <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-[1400px] mx-auto">
+            {/* Hero text */}
+            <div className="mb-8">
+              <h1 className="text-[40px] font-bold leading-tight">
+                <span className="text-[#e0a040]">1 agent.</span>{' '}
+                <span className="text-white">Working live.</span>
+              </h1>
+              <p className="text-[#5a7a7a] text-[15px] mt-2">
+                Click any terminal to watch the full sequence.
+              </p>
+            </div>
+
             <TerminalGrid onExpand={setExpandedId} />
+
+            {/* Footer */}
+            <div className="flex items-center justify-between mt-8 text-[10px] uppercase tracking-wider text-[#3a5050]">
+              <span>&copy; 2026 MACROCODER</span>
+              <span>6 SEQUENCES · &infin; LOOP</span>
+            </div>
           </div>
         </div>
 
         {/* Activity log sidebar */}
         <div className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0`}>
-          <StatsSidebar />
+          <StatsSidebar onExpand={setExpandedId} />
         </div>
 
-        {/* Chevron toggle button (far right edge) */}
+        {/* Chevron toggle button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="w-4 border-l border-[#3a2a1a] bg-[#1e1810] flex items-center justify-center hover:bg-[#2a1e14] transition-colors flex-shrink-0"
+          className="w-4 border-l border-[#1e2e2e] bg-[#0e1a1c] flex items-center justify-center hover:bg-[#142020] transition-colors flex-shrink-0"
         >
           {sidebarOpen ? (
-            <ChevronRight className="h-3 w-3 text-[#6a5a4a]" />
+            <ChevronRight className="h-3 w-3 text-[#3a5050]" />
           ) : (
-            <ChevronLeft className="h-3 w-3 text-[#6a5a4a]" />
+            <ChevronLeft className="h-3 w-3 text-[#3a5050]" />
           )}
         </button>
       </div>
@@ -70,6 +87,7 @@ export function LiveTerminalDashboard() {
         <ExpandedTerminal
           sessionId={expandedId}
           onClose={() => setExpandedId(null)}
+          onSwitch={setExpandedId}
         />
       )}
     </div>

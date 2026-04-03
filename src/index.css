@@ -5,13 +5,22 @@
 }
 
 body {
-  background-color: #050403;
-  color: #f2ece5;
+  background-color: #0a1214;
+  color: #d0dede;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background-color: rgba(166, 110, 27, 0.4);
+  background-color: rgba(224, 160, 64, 0.4);
   color: #fff7ea;
+}
+
+/* Hide scrollbars but keep scrolling */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }

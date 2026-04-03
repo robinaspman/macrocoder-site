@@ -1,122 +1,155 @@
-import { X, Terminal, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 import { TerminalPanel } from './TerminalPanel'
-import { TERMINAL_SESSIONS, ACTIVITY_LOG } from './terminalData'
+import { TERMINAL_SESSIONS, ACTIVITY_LOG, JOURNAL_ENTRIES } from './terminalData'
 
 export function ExpandedTerminal({
   sessionId,
   onClose,
+  onSwitch,
 }: {
   sessionId: string
   onClose: () => void
+  onSwitch: (id: string) => void
 }) {
   const session = TERMINAL_SESSIONS.find(s => s.id === sessionId)
+  const [activeTab, setActiveTab] = useState<'journal' | 'activity'>('journal')
+
   if (!session) return null
 
-  const sessionLogs = ACTIVITY_LOG.filter(
-    log => log.detail.toLowerCase().includes(session.mode.toLowerCase()) ||
-           log.event.toLowerCase().includes(session.id)
-  )
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-8" onClick={onClose}>
-      <div
-        className="w-full max-w-5xl h-[80vh] bg-[#1a1510] rounded-2xl border border-[#3a2a1a] overflow-hidden flex flex-col shadow-2xl shadow-black/50"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a1e14]">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-              <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-              <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-            </div>
-            <div className="flex items-center gap-3">
-              <Terminal className="h-4 w-4" style={{ color: session.color }} />
-              <span className="text-[14px] font-semibold uppercase tracking-wider" style={{ color: session.color }}>
-                {session.mode}
-              </span>
-              <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                LIVE
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-[11px] text-[#5a4a3a] font-mono">{session.command}</span>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-[#2a1e14] text-[#6a5a4a] hover:text-[#c0a070] transition"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+    <div className="fixed inset-0 z-50 bg-[#0a1214] flex flex-col">
+      {/* Top bar */}
+      <div className="h-[48px] flex items-center justify-between px-6 border-b border-[#1e2e2e] flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="text-[12px] text-[#5a7a7a] hover:text-[#d0dede] transition-colors flex items-center gap-1"
+        >
+          &larr; BACK
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#e0a040]" />
+          <span className="text-[12px] uppercase tracking-[0.2em] text-[#e0a040] font-semibold">
+            MACROCODER
+          </span>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[11px] text-green-400 font-medium">LIVE</span>
+        </div>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
+      {/* Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Terminal section */}
+        <div className="flex-1 flex flex-col p-6 overflow-hidden">
+          {/* Back-to link */}
+          <button
+            onClick={onClose}
+            className="text-[11px] text-[#e0a040] hover:text-[#f0b050] transition-colors mb-3 self-start"
+          >
+            &larr; Back to {session.icon} {session.mode}
+          </button>
+
           {/* Terminal */}
-          <div className="flex-1 p-4">
+          <div className="flex-1 min-h-0">
             <TerminalPanel session={session} />
           </div>
+        </div>
 
-          {/* Activity sidebar */}
-          <div className="w-[260px] border-l border-[#2a1e14] bg-[#15100a] p-4 overflow-y-auto">
-            <p className="text-[10px] uppercase tracking-wider text-[#6a5a4a] mb-4">Session Activity</p>
+        {/* Right sidebar with tabs */}
+        <div className="w-[320px] border-l border-[#1e2e2e] bg-[#0e1a1c] flex flex-col flex-shrink-0">
+          {/* Tab headers */}
+          <div className="flex border-b border-[#1e2e2e]">
+            <button
+              onClick={() => setActiveTab('journal')}
+              className={`flex-1 py-3 text-[11px] uppercase tracking-wider font-medium transition-colors ${
+                activeTab === 'journal'
+                  ? 'text-[#e0a040] border-b-2 border-[#e0a040]'
+                  : 'text-[#5a7a7a] hover:text-[#8aaa9a]'
+              }`}
+            >
+              // Journal
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`flex-1 py-3 text-[11px] uppercase tracking-wider font-medium transition-colors ${
+                activeTab === 'activity'
+                  ? 'text-[#e0a040] border-b-2 border-[#e0a040]'
+                  : 'text-[#5a7a7a] hover:text-[#8aaa9a]'
+              }`}
+            >
+              Activity
+            </button>
+          </div>
 
-            <div className="space-y-4">
-              {/* Session stats */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[#251c14] rounded-lg p-3 border border-[#3a2a1a]">
-                  <p className="text-[16px] font-bold text-[#c0a070]">{session.lines.length}</p>
-                  <p className="text-[9px] uppercase tracking-wider text-[#5a4a3a]">Total Lines</p>
-                </div>
-                <div className="bg-[#251c14] rounded-lg p-3 border border-[#3a2a1a]">
-                  <p className="text-[16px] font-bold text-green-400">
-                    {session.lines.filter(l => l.type === 'success').length}
-                  </p>
-                  <p className="text-[9px] uppercase tracking-wider text-[#5a4a3a]">Successes</p>
-                </div>
-                <div className="bg-[#251c14] rounded-lg p-3 border border-[#3a2a1a]">
-                  <p className="text-[16px] font-bold text-blue-400">
-                    {session.lines.filter(l => l.type === 'command').length}
-                  </p>
-                  <p className="text-[9px] uppercase tracking-wider text-[#5a4a3a]">Commands</p>
-                </div>
-                <div className="bg-[#251c14] rounded-lg p-3 border border-[#3a2a1a]">
-                  <p className="text-[16px] font-bold text-orange-400">
-                    {session.lines.filter(l => l.type === 'warning' || l.type === 'error').length}
-                  </p>
-                  <p className="text-[9px] uppercase tracking-wider text-[#5a4a3a]">Issues</p>
-                </div>
-              </div>
-
-              {/* Activity log */}
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-[#6a5a4a] mb-2">Related Events</p>
-                <div className="space-y-2">
-                  {sessionLogs.length > 0 ? sessionLogs.map((log, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      {log.status === 'done' ? (
-                        <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-3 w-3 text-yellow-500 mt-0.5 flex-shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-[11px] text-[#c0a070] truncate">{log.event}</p>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5 text-[#5a4a3a]" />
-                          <span className="text-[9px] text-[#5a4a3a] font-mono">{log.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <p className="text-[11px] text-[#5a4a3a]">No specific events logged</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {activeTab === 'journal' ? (
+              <JournalTab />
+            ) : (
+              <ActivityTab onSwitch={onSwitch} />
+            )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function JournalTab() {
+  return (
+    <div>
+      <p className="text-[11px] text-[#5a7a7a] font-mono mb-4">// journal</p>
+      <div className="space-y-6">
+        {JOURNAL_ENTRIES.map((entry, i) => (
+          <div key={i} className="relative">
+            {/* Day marker */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="h-2 w-2 rounded-full bg-[#e0a040]" />
+              <span className="text-[11px] text-[#e0a040] font-medium">
+                Day {entry.day}
+              </span>
+              <span className="text-[10px] text-[#4a6a6a]">{entry.time}</span>
+            </div>
+
+            {/* Entry content */}
+            <div className="ml-4">
+              <p className="text-[13px] text-[#d0dede] font-semibold leading-snug mb-1">
+                {entry.title}
+              </p>
+              <p className="text-[11px] text-[#6a8a8a] leading-relaxed [font-family:'JetBrains_Mono',monospace]">
+                {entry.body}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ActivityTab({ onSwitch }: { onSwitch: (id: string) => void }) {
+  return (
+    <div>
+      <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-4">Activity Log</p>
+      <div className="space-y-2">
+        {ACTIVITY_LOG.map((entry, i) => (
+          <button
+            key={i}
+            onClick={() => onSwitch(entry.sessionId)}
+            className={`flex items-start gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors cursor-pointer hover:bg-[#142020] ${
+              i === 0 ? 'bg-[#142020] border border-[#1e2e2e]' : ''
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
+              entry.status === 'done' ? 'bg-green-500' : 'bg-green-400 animate-pulse'
+            }`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] text-[#d0dede] leading-snug">{entry.event}</p>
+              <p className="text-[10px] text-[#4a6a6a] mt-0.5">{entry.time}</p>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   )

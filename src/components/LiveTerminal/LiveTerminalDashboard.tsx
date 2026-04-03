@@ -47,7 +47,7 @@ export function LiveTerminalDashboard() {
     setSessions(demo)
     setVisibleIds(demo.map((s: Session) => s.id))
     // Use activity from demo data
-    const activityData = ACTIVITY_LOG.slice(0, 10).map(a => ({
+    const activityData = ACTIVITY_LOG.slice(0, 15).map(a => ({
       time: a.time,
       event: a.event,
       detail: a.detail,

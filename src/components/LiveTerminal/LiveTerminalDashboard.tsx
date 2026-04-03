@@ -42,7 +42,9 @@ export function LiveTerminalDashboard() {
   const [dataSource, setDataSource] = useState<'live' | 'demo'>('demo')
 
   useEffect(() => {
+    console.log('[Dashboard] Starting getLatestSnapshots...')
     getLatestSnapshots().then(res => {
+      console.log('[Dashboard] getLatestSnapshots result:', res)
       if (res.snapshots && res.snapshots.length > 0) {
         const liveSessions = res.snapshots.map((s: any) => ({
           id: s.session_id,
@@ -53,10 +55,12 @@ export function LiveTerminalDashboard() {
           color: getColorForMode(s.mode),
           description: s.description || '',
         }))
+        console.log('[Dashboard] Setting sessions (live):', liveSessions)
         setSessions(liveSessions)
         setVisibleIds(liveSessions.map((s: Session) => s.id))
         setDataSource('live')
       } else {
+        console.log('[Dashboard] Using demo fallback')
         // Fall back to demo data
         const demo = TERMINAL_SESSIONS.map(s => ({
           id: s.id,
@@ -67,6 +71,7 @@ export function LiveTerminalDashboard() {
           color: s.color,
           description: s.description,
         }))
+        console.log('[Dashboard] Demo sessions:', demo)
         setSessions(demo)
         setVisibleIds(demo.map((s: Session) => s.id))
         setDataSource('demo')

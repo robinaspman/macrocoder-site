@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TerminalPanel } from './TerminalPanel'
 import { TERMINAL_SESSIONS, ACTIVITY_LOG, JOURNAL_ENTRIES } from './terminalData'
 
@@ -89,26 +89,26 @@ export function ExpandedTerminal({
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {activeTab === 'journal' ? (
+          {activeTab === 'journal' ? (
+            <div className="flex-1 overflow-y-auto p-4">
               <JournalTab onSelectEntry={setSelectedJournalId} />
-            ) : (
-              <ActivityTab
-                sortedLog={sortedLog}
-                onSwitch={(id) => {
-                  const selected = ACTIVITY_LOG.find(e => e.sessionId === id)
-                  if (selected) {
-                    const reordered = [
-                      selected,
-                      ...sortedLog.filter(e => e.sessionId !== id),
-                    ]
-                    setSortedLog(reordered)
-                  }
-                  onSwitch(id)
-                }}
-              />
-            )}
-          </div>
+            </div>
+          ) : (
+            <ActivityTabWithScroll
+              sortedLog={sortedLog}
+              onSwitch={(id) => {
+                const selected = ACTIVITY_LOG.find(e => e.sessionId === id)
+                if (selected) {
+                  const reordered = [
+                    selected,
+                    ...sortedLog.filter(e => e.sessionId !== id),
+                  ]
+                  setSortedLog(reordered)
+                }
+                onSwitch(id)
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -145,6 +145,63 @@ function JournalTab({ onSelectEntry }: { onSelectEntry: (id: string) => void }) 
               <p className="text-[10px] text-[#6a8a8a] leading-relaxed">
                 {entry.body}
               </p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ActivityTabWithScroll({ sortedLog, onSwitch }: { sortedLog: typeof ACTIVITY_LOG; onSwitch: (id: string) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const scrollContainer = scrollRef.current
+    if (!scrollContainer) return
+
+    let animationFrameId: number
+    let scrollPosition = 0
+    const scrollSpeed = 0.3
+
+    const animate = () => {
+      scrollPosition += scrollSpeed
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollPosition
+      }
+
+      if (scrollContainer && scrollPosition >= scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+        setTimeout(() => {
+          scrollPosition = 0
+        }, 2000)
+      }
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    animationFrameId = requestAnimationFrame(animate)
+
+    return () => cancelAnimationFrame(animationFrameId)
+  }, [])
+
+  return (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
+      <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-4">Activity Log</p>
+      <div className="space-y-1.5">
+        {sortedLog.map((entry, i) => (
+          <button
+            key={i}
+            onClick={() => onSwitch(entry.sessionId)}
+            className={`flex items-start gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors cursor-pointer hover:bg-[#142020] ${
+              i === 0 ? 'bg-[#142020] border border-[#1e2e2e]' : ''
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
+              entry.status === 'done' ? 'bg-green-500' : 'bg-green-400 animate-pulse'
+            }`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] text-[#d0dede] leading-snug">{entry.event}</p>
+              <p className="text-[10px] text-[#4a6a6a] mt-0.5">{entry.time}</p>
             </div>
           </button>
         ))}

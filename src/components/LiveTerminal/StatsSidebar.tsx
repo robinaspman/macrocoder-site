@@ -23,6 +23,35 @@ export function StatsSidebar({ onExpand }: { onExpand: (id: string) => void }) {
     }
   }, [selectedId])
 
+  useEffect(() => {
+    const scrollContainer = scrollRef.current
+    if (!scrollContainer) return
+
+    let animationFrameId: number
+    let scrollPosition = 0
+    const scrollSpeed = 0.3
+
+    const animate = () => {
+      scrollPosition += scrollSpeed
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollPosition
+      }
+
+      // Loop back to top if reached bottom
+      if (scrollContainer && scrollPosition >= scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+        setTimeout(() => {
+          scrollPosition = 0
+        }, 2000)
+      }
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    animationFrameId = requestAnimationFrame(animate)
+
+    return () => cancelAnimationFrame(animationFrameId)
+  }, [])
+
   const handleClick = (sessionId: string) => {
     setSelectedId(sessionId)
     onExpand(sessionId)

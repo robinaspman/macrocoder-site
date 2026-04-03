@@ -111,7 +111,7 @@ export function LiveTerminalDashboard() {
             {/* Hero text */}
             <div className="mb-6 flex-shrink-0 max-w-[720px]">
               <h1 className="text-[32px] font-bold leading-tight tracking-tight">
-                <span className="text-[#e0a040]" style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}>Macrocoder.</span>{' '}
+                <span className="text-[#e0a040]" style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}>MacroCoder.</span>{' '}
                 <span className="text-white">Multiple Agents. Real Execution.</span>
               </h1>
               <p className="text-[#8aaa9a] text-[14px] mt-3 font-medium">

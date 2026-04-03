@@ -437,11 +437,11 @@ async def get_session_lines(
     return DEMO_LINES.get(session_id, [])
 
 @app.get("/api/activity")
-async def get_activity(
-    request: Request,
-    x_api_key: str = Depends(verify_api_key)
-):
+async def get_activity(request: Request):
     check_rate_limit(f"activity_{get_real_ip(request)}", limit=10, window=60)
+    
+    if not HETZNER_API_KEY:
+        return DEMO_ACTIVITY
     
     try:
         data = await hetzner_get("/actions?status=success&sort=desc&per_page=50")
@@ -461,11 +461,11 @@ async def get_activity(
         return DEMO_ACTIVITY
 
 @app.get("/api/stats")
-async def get_stats(
-    request: Request,
-    x_api_key: str = Depends(verify_api_key)
-):
+async def get_stats(request: Request):
     check_rate_limit(f"stats_{get_real_ip(request)}", limit=10, window=60)
+    
+    if not HETZNER_API_KEY:
+        return DEMO_STATS
     
     try:
         data = await hetzner_get("/servers")

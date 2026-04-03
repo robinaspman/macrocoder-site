@@ -106,7 +106,15 @@ export async function getJournalThought(entryId: string) {
 }
 
 export async function getLatestSnapshots(limit = 6) {
-  return fetchWithFallback(`/api/snapshots/latest?limit=${limit}`, { snapshots: [], source: 'demo' })
+  if (!API_URL) return { snapshots: [], source: 'demo' }
+  
+  try {
+    const res = await fetch(`${API_URL}/api/snapshots/latest?limit=${limit}`)
+    if (!res.ok) return { snapshots: [], source: 'demo' }
+    return await res.json()
+  } catch {
+    return { snapshots: [], source: 'demo' }
+  }
 }
 
 export async function getSnapshot(sessionId: string) {

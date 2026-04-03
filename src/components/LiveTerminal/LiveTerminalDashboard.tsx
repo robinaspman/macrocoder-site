@@ -54,7 +54,7 @@ export function LiveTerminalDashboard() {
           description: s.description || '',
         }))
         setSessions(liveSessions)
-        setVisibleIds(liveSessions.map(_ => _.id))
+        setVisibleIds(liveSessions.map((s: Session) => s.id))
         setDataSource('live')
       } else {
         // Fall back to demo data
@@ -68,7 +68,7 @@ export function LiveTerminalDashboard() {
           description: s.description,
         }))
         setSessions(demo)
-        setVisibleIds(demo.map(_ => _.id))
+        setVisibleIds(demo.map((s: Session) => s.id))
         setDataSource('demo')
       }
     })

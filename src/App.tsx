@@ -5,7 +5,7 @@ import './index.css'
 
 function App() {
   return (
-    <BrowserRouter basename="/macrocoder-site">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<LiveTerminalDashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />

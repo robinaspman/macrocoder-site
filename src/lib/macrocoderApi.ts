@@ -105,6 +105,14 @@ export async function getJournalThought(entryId: string) {
   return fetchWithApiKey(`/api/journal/${entryId}/thought`, { expanded_thought: '' })
 }
 
+export async function getLatestSnapshots(limit = 6) {
+  return fetchWithFallback(`/api/snapshots/latest?limit=${limit}`, { snapshots: [], source: 'demo' })
+}
+
+export async function getSnapshot(sessionId: string) {
+  return fetchWithFallback(`/api/snapshots/${sessionId}`, null)
+}
+
 export async function connectTerminalWebSocket(sessionId: string) {
   if (!API_URL) return null
   

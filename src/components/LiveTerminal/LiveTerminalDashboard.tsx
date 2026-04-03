@@ -4,7 +4,8 @@ import { TerminalGrid } from './TerminalPanel'
 import { StatsSidebar } from './StatsSidebar'
 import { ExpandedTerminal } from './ExpandedTerminal'
 import { TerminalSelector } from './TerminalSelector'
-import { getSessions, getActivity } from '../../lib/macrocoderApi'
+import { getLatestSnapshots, getActivity } from '../../lib/macrocoderApi'
+import { TERMINAL_SESSIONS } from './terminalData'
 
 interface Session {
   id: string
@@ -38,14 +39,56 @@ export function LiveTerminalDashboard() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [visibleIds, setVisibleIds] = useState<string[]>([])
+  const [dataSource, setDataSource] = useState<'live' | 'demo'>('demo')
 
   useEffect(() => {
-    getSessions().then(s => {
-      setSessions(s)
-      setVisibleIds(s.map((_: Session) => _.id))
+    getLatestSnapshots().then(res => {
+      if (res.snapshots && res.snapshots.length > 0) {
+        const liveSessions = res.snapshots.map((s: any) => ({
+          id: s.session_id,
+          mode: s.mode,
+          icon: getIconForMode(s.mode),
+          status: s.status as 'running' | 'completed' | 'idle',
+          command: s.command || '',
+          color: getColorForMode(s.mode),
+          description: s.description || '',
+        }))
+        setSessions(liveSessions)
+        setVisibleIds(liveSessions.map(_ => _.id))
+        setDataSource('live')
+      } else {
+        // Fall back to demo data
+        const demo = TERMINAL_SESSIONS.map(s => ({
+          id: s.id,
+          mode: s.mode,
+          icon: s.icon,
+          status: s.status,
+          command: s.command,
+          color: s.color,
+          description: s.description,
+        }))
+        setSessions(demo)
+        setVisibleIds(demo.map(_ => _.id))
+        setDataSource('demo')
+      }
     })
     getActivity().then(setActivity)
   }, [])
+
+  const getIconForMode = (mode: string) => {
+    const icons: Record<string, string> = {
+      deploy: '▲', debug: '›', build: '⚡', migrate: '↔', secure: '🛡', optimize: '◈'
+    }
+    return icons[mode.toLowerCase()] || '●'
+  }
+
+  const getColorForMode = (mode: string) => {
+    const colors: Record<string, string> = {
+      deploy: '#f97316', debug: '#8b5cf6', build: '#22c55e', 
+      migrate: '#3b82f6', secure: '#ef4444', optimize: '#eab308'
+    }
+    return colors[mode.toLowerCase()] || '#f97316'
+  }
 
   const visibleSessions = sessions.filter(s => visibleIds.includes(s.id))
 
@@ -85,7 +128,7 @@ export function LiveTerminalDashboard() {
         </div>
         <div className="ml-auto flex items-center gap-4">
           <span className="text-[11px] text-[#5a7a7a]">
-            1 agent · {visibleIds.length} mode{visibleIds.length !== 1 ? 's' : ''} · Working live
+            1 agent · {visibleIds.length} mode{visibleIds.length !== 1 ? 's' : ''} · {dataSource === 'live' ? 'Live data' : 'Demo data'}
           </span>
         </div>
       </header>

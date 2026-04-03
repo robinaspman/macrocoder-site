@@ -16,10 +16,27 @@ from datetime import datetime, timedelta
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from contextlib import asynccontextmanager
+
+from database import db
+
+from contextlib import asynccontextmanager
+
+from database import db
+
+
+# ============== LIFESPAN ==============
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init()
+    logging.info("Database initialized")
+    yield
+
 
 # ============== SETUP ==============
 
-app = FastAPI(title="MacroCoder API")
+app = FastAPI(title="MacroCoder API", lifespan=lifespan)
 
 # Environment detection
 ENV = os.getenv("ENV", "development")
@@ -559,3 +576,97 @@ async def health():
 @app.get("/ready")
 async def ready():
     return {"status": "ready"}
+
+# ============== SNAPSHOTS ==============
+
+ALLOWED_MODES = ['deploy', 'debug', 'build', 'migrate', 'secure', 'optimize']
+
+
+def sanitize_lines(lines: list) -> list:
+    sanitized = []
+    for line in lines[:1000]:
+        if not isinstance(line, dict):
+            continue
+        sanitized.append({
+            "type": str(line.get("type", "output"))[:20],
+            "text": str(line.get("text", ""))[:500],
+            "delay": min(int(line.get("delay", 0)), 5000),
+        })
+    return sanitized
+
+
+class SnapshotPayload(BaseModel):
+    session_id: str = Field(..., max_length=100)
+    mode: str = Field(..., max_length=20)
+    command: Optional[str] = Field(None, max_length=500)
+    status: str = Field(..., max_length=20)
+    description: Optional[str] = Field(None, max_length=200)
+    lines: list = Field(..., max_length=1000)
+
+    @validator('mode')
+    def valid_mode(cls, v):
+        if v.lower() not in ALLOWED_MODES:
+            raise ValueError(f'Invalid mode: {v}')
+        return v.lower()
+
+    @validator('status')
+    def valid_status(cls, v):
+        allowed = ['running', 'completed', 'idle', 'failed']
+        if v not in allowed:
+            raise ValueError(f'Invalid status: {v}')
+        return v
+
+
+@app.post("/api/snapshots")
+@limiter.limit("20/minute")
+async def create_snapshot(payload: SnapshotPayload, request: Request, x_api_key: str = Header(...)):
+    """Receive snapshot from MacroCoder (24/7 agent) - requires API key"""
+    verify_api_key(x_api_key)
+    check_rate_limit(f"snapshot_{get_real_ip(request)}", limit=20, window=60)
+    
+    sanitized_lines = sanitize_lines(payload.lines)
+    
+    snapshot_id = await db.save_snapshot(
+        session_id=payload.session_id,
+        mode=payload.mode,
+        command=payload.command,
+        status=payload.status,
+        description=payload.description,
+        lines=sanitized_lines,
+    )
+    safe_id = sanitize_for_log(payload.session_id)
+    logging.info(f"Snapshot saved: {safe_id}")
+    return {"id": snapshot_id, "session_id": payload.session_id}
+
+
+@app.get("/api/snapshots")
+async def get_snapshots(limit: int = Query(50, le=100), offset: int = Query(0, ge=0)):
+    """Get past sessions for the dashboard"""
+    return await db.get_snapshots(limit=limit, offset=offset)
+
+
+@app.get("/api/snapshots/latest")
+async def get_latest_snapshots(limit: int = Query(6, le=20)):
+    """Get latest snapshots for the live terminal"""
+    snapshots = await db.get_latest_snapshots(limit=limit)
+    if not snapshots:
+        return {"snapshots": [], "source": "demo"}
+    return {"snapshots": snapshots, "source": "live"}
+
+
+@app.get("/api/snapshots/{session_id}")
+async def get_snapshot(session_id: str):
+    """Get single snapshot details"""
+    snapshot = await db.get_snapshot(session_id)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return snapshot
+
+
+@app.post("/api/maintenance/cleanup")
+async def trigger_cleanup(days: int = Query(30, ge=1, le=365)):
+    """Manually trigger cleanup of old snapshots"""
+    if ENV != "production":
+        raise HTTPException(status_code=403, detail="Maintenance only in production")
+    deleted = await db.cleanup_old_snapshots(days=days)
+    return {"deleted": deleted, "days": days}

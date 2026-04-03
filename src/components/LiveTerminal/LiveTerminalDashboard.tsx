@@ -67,11 +67,14 @@ export function LiveTerminalDashboard() {
 
   const visibleSessions = sessions.filter(s => visibleIds.includes(s.id))
 
-  const terminalSessions = visibleSessions.map(s => ({
-    ...s,
-    status: s.status as 'running' | 'completed' | 'idle',
-    lines: [],
-  }))
+  const terminalSessions = visibleSessions.map(s => {
+    const demoSession = TERMINAL_SESSIONS.find(ds => ds.id === s.id)
+    return {
+      ...s,
+      status: s.status as 'running' | 'completed' | 'idle',
+      lines: demoSession?.lines || [],
+    }
+  })
 
   return (
     <div className="h-screen bg-[#0a1214] text-white flex flex-col [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">

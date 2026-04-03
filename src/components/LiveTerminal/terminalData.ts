@@ -282,6 +282,22 @@ export const ACTIVITY_LOG = [
   { time: '1h 5m ago', event: 'Patched CORS headers', detail: 'Credential + SameSite policies', status: 'done', sessionId: 'securing' },
   { time: '1h 12m ago', event: 'Built PDF export feature', detail: 'jsPDF + React rendering', status: 'done', sessionId: 'building' },
   { time: '1h 18m ago', event: 'Fixed memory leak in hooks', detail: 'useEffect cleanup handlers', status: 'done', sessionId: 'debugging' },
+  { time: '1h 24m ago', event: 'Implemented dark mode toggle', detail: 'CSS-in-JS theme switching', status: 'done', sessionId: 'building' },
+  { time: '1h 31m ago', event: 'Upgraded TypeScript 5.3', detail: 'Zero breaking changes', status: 'done', sessionId: 'migrating' },
+  { time: '1h 38m ago', event: 'Added metrics dashboard', detail: 'Real-time CPU, memory, latency', status: 'done', sessionId: 'building' },
+  { time: '1h 45m ago', event: 'Fixed race condition in cache', detail: 'Atomic operations with Redis WATCH', status: 'done', sessionId: 'debugging' },
+  { time: '1h 52m ago', event: 'Deployed v2.3.9 to staging', detail: 'Pre-release testing', status: 'done', sessionId: 'deploying' },
+  { time: '1h 59m ago', event: 'Audited package versions', detail: '3 outdated, 0 critical', status: 'done', sessionId: 'securing' },
+  { time: '2h 6m ago', event: 'Implemented rate limiting', detail: 'Redis-backed token bucket', status: 'done', sessionId: 'optimizing' },
+  { time: '2h 13m ago', event: 'Fixed timezone handling', detail: 'UTC normalization in API', status: 'done', sessionId: 'debugging' },
+  { time: '2h 20m ago', event: 'Added webhook retries', detail: 'Exponential backoff + dead letter', status: 'done', sessionId: 'building' },
+  { time: '2h 27m ago', event: 'Optimized bundle size', detail: '1.2MB → 340KB main bundle', status: 'done', sessionId: 'optimizing' },
+  { time: '2h 34m ago', event: 'Patched SQL injection risk', detail: 'Parameterized all queries', status: 'done', sessionId: 'securing' },
+  { time: '2h 41m ago', event: 'Implemented request batching', detail: 'Reduced API calls by 67%', status: 'done', sessionId: 'optimizing' },
+  { time: '2h 48m ago', event: 'Fixed CORS preflight', detail: 'Conditional OPTIONS handling', status: 'done', sessionId: 'debugging' },
+  { time: '2h 55m ago', event: 'Added error boundaries', detail: 'Graceful React error handling', status: 'done', sessionId: 'building' },
+  { time: '3h 2m ago', event: 'Migrated to App Router', detail: '100% next/app adoption', status: 'done', sessionId: 'migrating' },
+  { time: '3h 9m ago', event: 'Configured monitoring alerts', detail: 'Slack + PagerDuty integration', status: 'done', sessionId: 'building' },
 ]
 
 export const JOURNAL_ENTRIES: JournalEntry[] = [

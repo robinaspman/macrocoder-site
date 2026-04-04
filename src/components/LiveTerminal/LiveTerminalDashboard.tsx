@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react'
 import { TerminalGrid } from './TerminalPanel'
 import { StatsSidebar } from './StatsSidebar'
 import { ExpandedTerminal } from './ExpandedTerminal'
@@ -27,6 +28,7 @@ interface Activity {
 }
 
 export function LiveTerminalDashboard() {
+  const navigate = useNavigate()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -97,6 +99,13 @@ export function LiveTerminalDashboard() {
           />
         </div>
         <div className="ml-auto flex items-center gap-4">
+          <button
+            onClick={() => navigate('/analytics')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#1e2e2e] hover:bg-[#2a3a3a] text-[11px] text-[#e0a040] font-medium uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            <BarChart3 className="h-3 w-3" />
+            Analytics
+          </button>
           <span className="text-[11px] text-[#5a7a7a]">
             1 agent · {visibleIds.length} mode{visibleIds.length !== 1 ? 's' : ''} · Demo data
           </span>

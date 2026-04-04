@@ -99,7 +99,7 @@ function SvgLineChart({
           <text x={padL - 8} y={g.y + 4} textAnchor="end" fill="#5a7a7a" fontSize="10" fontFamily="monospace">{g.label}</text>
         </g>
       ))}
-      {data.filter((_, i) => i % 2 === 0).map((d, i, arr) => (
+      {data.filter((_, i) => i % 2 === 0).map((d, i) => (
         <text key={i} x={toX(data.indexOf(d))} y={h - 5} textAnchor="middle" fill="#5a7a7a" fontSize="9" fontFamily="monospace">
           {d.hour}
         </text>

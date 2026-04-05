@@ -921,6 +921,8 @@ function StrategiesTab() {
 
 export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('xray')
+  const [tabOrder, setTabOrder] = useState<Tab[]>(['xray', 'archetypes', 'threats', 'costs', 'health', 'providers', 'strategies'])
+  const [draggedTab, setDraggedTab] = useState<Tab | null>(null)
   const { data: _rulerData, loading, source, refresh } = useRulerData()
   const navigate = useNavigate()
 
@@ -928,15 +930,40 @@ export function AnalyticsPage() {
     refresh()
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'xray', label: 'CODEBASE X-RAY' },
-    { id: 'archetypes', label: 'ARCHETYPES' },
-    { id: 'threats', label: 'THREATS & BOARD' },
-    { id: 'costs', label: 'COST TRACKER' },
-    { id: 'health', label: 'PROJECT HEALTH' },
-    { id: 'providers', label: 'PROVIDERS' },
-    { id: 'strategies', label: 'STRATEGIES' },
-  ]
+  const handleDragStart = (e: React.DragEvent, tabId: Tab) => {
+    setDraggedTab(tabId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', tabId)
+  }
+
+  const handleDragOver = (e: React.DragEvent, _tabId: Tab) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e: React.DragEvent, targetTabId: Tab) => {
+    e.preventDefault()
+    if (!draggedTab || draggedTab === targetTabId) return
+    
+    const newOrder = [...tabOrder]
+    const draggedIndex = newOrder.indexOf(draggedTab)
+    const targetIndex = newOrder.indexOf(targetTabId)
+    
+    newOrder.splice(draggedIndex, 1)
+    newOrder.splice(targetIndex, 0, draggedTab)
+    
+    setTabOrder(newOrder)
+    setDraggedTab(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTab(null)
+  }
+
+  const tabs: { id: Tab; label: string }[] = tabOrder.map(id => ({
+    id,
+    label: { xray: 'CODEBASE X-RAY', archetypes: 'ARCHETYPES', threats: 'THREATS & BOARD', costs: 'COST TRACKER', health: 'PROJECT HEALTH', providers: 'PROVIDERS', strategies: 'STRATEGIES' }[id] as string
+  }))
 
   return (
     <div className="min-h-screen bg-[#0a1214] text-[#d0dede] [font-family:Inter,ui-sans-serif,system-ui,sans-serif]">
@@ -992,10 +1019,17 @@ export function AnalyticsPage() {
             {tabs.map(tab => (
               <button
                 key={tab.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, tab.id)}
+                onDragOver={(e) => handleDragOver(e, tab.id)}
+                onDrop={(e) => handleDrop(e, tab.id)}
+                onDragEnd={handleDragEnd}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-3 text-[11px] tracking-[0.1em] font-medium transition-colors cursor-pointer border-b-2 whitespace-nowrap ${
-                  activeTab === tab.id ? 'text-[#e0a040] border-[#e0a040]' : 'text-[#5a7a7a] border-transparent hover:text-[#8aaa9a]'
-                }`}
+                className={`py-3 text-[11px] tracking-[0.1em] font-medium transition-colors border-b-2 whitespace-nowrap cursor-grab select-none ${
+                  activeTab === tab.id 
+                    ? 'text-[#e0a040] border-[#e0a040]' 
+                    : 'text-[#5a7a7a] border-transparent hover:text-[#8aaa9a]'
+                } ${draggedTab === tab.id ? 'opacity-50' : ''}`}
               >{tab.label}</button>
             ))}
           </div>

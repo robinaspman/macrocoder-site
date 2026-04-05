@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ArrowLeft, RefreshCw, Activity, Shield, DollarSign, TrendingUp,
   Cpu, Swords, Zap, AlertTriangle, CheckCircle, Clock, Crosshair,
@@ -41,7 +41,7 @@ import {
 
 type Tab = 'xray' | 'archetypes' | 'threats' | 'costs' | 'health' | 'providers' | 'strategies'
 
-interface RulerDataHook {
+interface RulerDataResult {
   data: {
     pieceBreakdown: typeof PIECE_BREAKDOWN
     healthScore: number
@@ -74,11 +74,19 @@ interface RulerDataHook {
   }
   loading: boolean
   source: 'api' | 'demo'
+  refresh: () => Promise<void>
 }
 
-function useRulerData(): RulerDataHook {
+function useRulerData(): RulerDataResult {
   const [snapshot, setSnapshot] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    const data = await getRulerSnapshot()
+    setSnapshot(data)
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
     getRulerSnapshot().then(data => {
@@ -121,7 +129,7 @@ function useRulerData(): RulerDataHook {
     }
   }, [snapshot])
 
-  return { data, loading, source: snapshot ? 'api' : 'demo' }
+  return { data, loading, source: snapshot ? 'api' : 'demo', refresh }
 }
 
 // ── Shared Components ───────────────────────────────────────────────
@@ -913,11 +921,11 @@ function StrategiesTab() {
 
 export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('xray')
-  const { data: _rulerData, loading, source } = useRulerData()
+  const { data: _rulerData, loading, source, refresh } = useRulerData()
   const navigate = useNavigate()
 
   const handleRefresh = () => {
-    window.location.reload()
+    refresh()
   }
 
   const tabs: { id: Tab; label: string }[] = [

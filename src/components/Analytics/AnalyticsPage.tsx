@@ -1029,7 +1029,7 @@ export function AnalyticsPage() {
                   activeTab === tab.id 
                     ? 'text-[#e0a040] border-[#e0a040]' 
                     : 'text-[#5a7a7a] border-transparent hover:text-[#8aaa9a]'
-                } ${draggedTab === tab.id ? 'opacity-50' : ''}`}
+                } ${draggedTab === tab.id ? 'bg-[#3b82f6] text-white rounded-md px-2 -translate-y-0.5 shadow-lg' : ''}`}
               >{tab.label}</button>
             ))}
           </div>

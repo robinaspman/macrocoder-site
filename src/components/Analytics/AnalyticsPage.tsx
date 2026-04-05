@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ArrowLeft, RefreshCw, Activity, Shield, DollarSign, TrendingUp,
   Cpu, Swords, Zap, AlertTriangle, CheckCircle, Clock, Crosshair,
   Crown, Map, BookOpen, Scale, GitBranch,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { getRulerSnapshot } from '../../lib/macrocoderApi'
 import {
   PIECE_BREAKDOWN,
   HEALTH_SCORE,
@@ -39,6 +40,89 @@ import {
 } from './rulerData'
 
 type Tab = 'xray' | 'archetypes' | 'threats' | 'costs' | 'health' | 'providers' | 'strategies'
+
+interface RulerDataHook {
+  data: {
+    pieceBreakdown: typeof PIECE_BREAKDOWN
+    healthScore: number
+    territory: typeof TERRITORY
+    concerns: typeof TOP_CONCERNS
+    dailyCosts: typeof DAILY_COSTS
+    costPerTask: typeof COST_PER_TASK
+    budget: typeof BUDGET
+    providerCosts: typeof PROVIDER_COSTS
+    healthHistory: typeof HEALTH_HISTORY
+    providerMetrics: typeof PROVIDER_METRICS
+    providerLatencyHistory: typeof PROVIDER_LATENCY_HISTORY
+    strategyStats: typeof STRATEGY_STATS
+    recentMoves: typeof RECENT_MOVES
+    archetypeProfile: typeof ARCHETYPE_PROFILE
+    dominantArchetype: string
+    archetypeWellness: number
+    archetypePredictions: typeof ARCHETYPE_PREDICTIONS
+    recentTransitions: typeof RECENT_TRANSITIONS
+    activeThreats: typeof ACTIVE_THREATS
+    threatSeverityCounts: typeof THREAT_SEVERITY_COUNTS
+    threatKindCounts: typeof THREAT_KIND_COUNTS
+    goTerritory: typeof GO_TERRITORY
+    territoryBoard: typeof TERRITORY_BOARD
+    openingBook: typeof OPENING_BOOK
+    recentRulings: typeof RECENT_RULINGS
+    quickFixesAvailable: number
+    estimatedComplexity: string
+    recommendedOpening: string
+  }
+  loading: boolean
+  source: 'api' | 'demo'
+}
+
+function useRulerData(): RulerDataHook {
+  const [snapshot, setSnapshot] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getRulerSnapshot().then(data => {
+      setSnapshot(data)
+      setLoading(false)
+    })
+  }, [])
+
+  const data = useMemo(() => {
+    const src = snapshot || {}
+    return {
+      pieceBreakdown: src.pieceBreakdown || PIECE_BREAKDOWN,
+      healthScore: src.healthScore ?? HEALTH_SCORE,
+      territory: src.territory || TERRITORY,
+      concerns: src.concerns || TOP_CONCERNS,
+      dailyCosts: src.costs?.dailyCosts || DAILY_COSTS,
+      costPerTask: src.costs?.costPerTask || COST_PER_TASK,
+      budget: src.costs?.budget || BUDGET,
+      providerCosts: src.costs?.providerCosts || PROVIDER_COSTS,
+      healthHistory: src.healthHistory || HEALTH_HISTORY,
+      providerMetrics: src.providerMetrics || PROVIDER_METRICS,
+      providerLatencyHistory: src.providerLatencyHistory || PROVIDER_LATENCY_HISTORY,
+      strategyStats: src.strategyStats || STRATEGY_STATS,
+      recentMoves: src.recentMoves || RECENT_MOVES,
+      archetypeProfile: src.archetypeProfile || ARCHETYPE_PROFILE,
+      dominantArchetype: src.dominantArchetype || DOMINANT_ARCHETYPE,
+      archetypeWellness: src.archetypeWellness ?? ARCHETYPE_WELLNESS,
+      archetypePredictions: src.archetypePredictions || ARCHETYPE_PREDICTIONS,
+      recentTransitions: src.recentTransitions || RECENT_TRANSITIONS,
+      activeThreats: src.activeThreats || ACTIVE_THREATS,
+      threatSeverityCounts: src.threatSeverityCounts || THREAT_SEVERITY_COUNTS,
+      threatKindCounts: src.threatKindCounts || THREAT_KIND_COUNTS,
+      goTerritory: src.goTerritory || GO_TERRITORY,
+      territoryBoard: src.territoryBoard || TERRITORY_BOARD,
+      openingBook: src.openingBook || OPENING_BOOK,
+      recentRulings: src.recentRulings || RECENT_RULINGS,
+      quickFixesAvailable: src.concerns?.length ? Math.floor(src.concerns.length * 0.6) : QUICK_FIXES_AVAILABLE,
+      estimatedComplexity: src.territory?.dominant ? 'Advanced' : ESTIMATED_COMPLEXITY,
+      recommendedOpening: src.territory?.dominant || RECOMMENDED_OPENING,
+    }
+  }, [snapshot])
+
+  return { data, loading, source: snapshot ? 'api' : 'demo' }
+}
 
 // ── Shared Components ───────────────────────────────────────────────
 
@@ -829,7 +913,12 @@ function StrategiesTab() {
 
 export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('xray')
+  const { data: _rulerData, loading, source } = useRulerData()
   const navigate = useNavigate()
+
+  const handleRefresh = () => {
+    window.location.reload()
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'xray', label: 'CODEBASE X-RAY' },
@@ -855,14 +944,35 @@ export function AnalyticsPage() {
               <span className="text-[14px] uppercase tracking-[0.2em] text-[#ece7e2] font-bold">Ruler Analytics</span>
             </div>
             <span className="px-2 py-0.5 rounded bg-[#1e2e2e] text-[10px] text-[#5a7a7a] font-mono">macrocoder module</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${source === 'api' ? 'bg-[#1fc164]/20 text-[#1fc164]' : 'bg-[#e0a040]/20 text-[#e0a040]'}`}>
+              {source === 'api' ? 'LIVE' : 'DEMO'}
+            </span>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-1.5 text-[11px] text-[#5a7a7a] hover:text-[#8aaa9a] transition-colors cursor-pointer">
-              <RefreshCw className="h-3 w-3" />REFRESH
+            <button 
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-[11px] text-[#5a7a7a] hover:text-[#8aaa9a] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />REFRESH
             </button>
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#1fc164] animate-pulse" />
-              <span className="text-[11px] text-[#1fc164] font-medium">LIVE</span>
+              {loading ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-[#e0a040] animate-pulse" />
+                  <span className="text-[11px] text-[#e0a040] font-medium">FETCHING</span>
+                </>
+              ) : source === 'api' ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-[#1fc164] animate-pulse" />
+                  <span className="text-[11px] text-[#1fc164] font-medium">LIVE</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-[#5a7a7a]" />
+                  <span className="text-[11px] text-[#5a7a7a] font-medium">DEMO</span>
+                </>
+              )}
             </div>
           </div>
         </div>

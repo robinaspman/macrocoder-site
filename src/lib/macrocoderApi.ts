@@ -140,6 +140,222 @@ export async function getSnapshot(sessionId: string) {
   }
 }
 
+export async function getRulerSnapshot(): Promise<RulerSnapshot | null> {
+  if (!API_URL) return null
+  
+  try {
+    const res = await fetch(`${API_URL}/api/v1/ruler/snapshot`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export interface RulerSnapshot {
+  timestamp: string
+  healthScore: number
+  pieceBreakdown: DetectedPiece[]
+  territory: Territory
+  concerns: Concern[]
+  costs: CostData
+  healthHistory: HealthPoint[]
+  providerMetrics: ProviderMetric[]
+  providerLatencyHistory: LatencyPoint[]
+  strategyStats: StrategyResult[]
+  recentMoves: RecentMove[]
+  archetypeProfile: ArchetypeWeight[]
+  dominantArchetype: string
+  archetypeWellness: number
+  archetypePredictions: ArchetypePrediction[]
+  recentTransitions: ArchetypeTransition[]
+  activeThreats: ThreatEntry[]
+  threatSeverityCounts: Record<string, number>
+  threatKindCounts: ThreatKindCount[]
+  goTerritory: GoTerritory
+  territoryBoard: number[][]
+  openingBook: Opening[]
+  recentRulings: RulingEntry[]
+}
+
+interface DetectedPiece {
+  piece: string
+  count: number
+  percentage: number
+  color: string
+}
+
+interface Territory {
+  dominant: string
+  concurrent: number
+  async: number
+  errorHandling: number
+  unsafeCode: number
+  reflection: number
+}
+
+interface Concern {
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
+  description: string
+  piece: string
+  location: string
+}
+
+interface CostData {
+  dailyCosts: DailyCost[]
+  costPerTask: CostPerTask[]
+  budget: Budget
+  providerCosts: ProviderCost[]
+  dailyCostsMax: number
+}
+
+interface DailyCost {
+  date: string
+  claude: number
+  openrouter: number
+  ollama: number
+}
+
+interface CostPerTask {
+  task: string
+  avgCost: number
+  count: number
+}
+
+interface Budget {
+  total: number
+  spent: number
+  cacheSavings: number
+  cacheHitRate: number
+  requestsAvoided: number
+}
+
+interface ProviderCost {
+  provider: string
+  cost: number
+  percentage: number
+  color: string
+}
+
+interface HealthPoint {
+  session: string
+  score: number
+  piecesResolved: number
+  concernsClosed: number
+}
+
+interface ProviderMetric {
+  provider: string
+  avgLatency: number
+  successRate: number
+  throttleCount: number
+  fallbackCount: number
+  color: string
+}
+
+interface LatencyPoint {
+  time: string
+  claude: number
+  gpt4o: number
+  mini: number
+  ollama: number
+}
+
+interface StrategyResult {
+  strategy: string
+  totalAttempts: number
+  successRate: number
+  avgHealthImprovement: number
+  bestForPiece: string
+  color: string
+}
+
+interface RecentMove {
+  timestamp: string
+  strategy: string
+  piece: string
+  success: boolean
+  healthBefore: number
+  healthAfter: number
+  latencyMs: number
+  provider: string
+}
+
+interface ArchetypeWeight {
+  archetype: string
+  weight: number
+  subtype: string
+  phase: string
+  color: string
+  icon: string
+  desire: string
+  provider: string
+  providerReason: string
+}
+
+interface ArchetypePrediction {
+  id: string
+  type: string
+  icon: string
+  probability: number
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  description: string
+  evidence: string
+  prevention: string
+}
+
+interface ArchetypeTransition {
+  from: string
+  to: string
+  trigger: string
+  timestamp: string
+  section: string
+}
+
+interface ThreatEntry {
+  kind: string
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'none'
+  location: string
+  description: string
+  piece: string
+}
+
+interface ThreatKindCount {
+  kind: string
+  count: number
+  color: string
+}
+
+interface GoTerritory {
+  blackControl: number
+  whiteControl: number
+  contested: number
+  neutral: number
+  totalLiberties: number
+  capturesBlack: number
+  capturesWhite: number
+  koHash: string
+}
+
+interface Opening {
+  name: string
+  projectType: string
+  difficulty: string
+  estimatedTimeMs: number
+  keyPieces: string[]
+  moveCount: number
+  description: string
+}
+
+interface RulingEntry {
+  category: string
+  pattern: string
+  priority: 'critical' | 'high' | 'medium' | 'low' | 'info'
+  transformation: string
+  location: string
+  autoSafe: boolean
+}
+
 export async function connectTerminalWebSocket(sessionId: string) {
   if (!API_URL) return null
   

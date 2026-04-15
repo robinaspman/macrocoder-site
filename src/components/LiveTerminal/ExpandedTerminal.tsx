@@ -6,27 +6,23 @@ import { TERMINAL_SESSIONS, ACTIVITY_LOG, JOURNAL_ENTRIES } from './terminalData
 export function ExpandedTerminal({
   sessionId,
   onClose,
-  onSwitch,
+  onSwitch
 }: {
   sessionId: string
   onClose: () => void
   onSwitch: (id: string) => void
 }) {
-  const session = TERMINAL_SESSIONS.find(s => s.id === sessionId)
+  const session = TERMINAL_SESSIONS.find((s) => s.id === sessionId)
   const [activeTab, setActiveTab] = useState<'journal' | 'activity'>('journal')
   const [expandedJournalId, setExpandedJournalId] = useState<string | null>(null)
+  const [selectedActivityIndex, setSelectedActivityIndex] = useState<number | null>(null)
 
   if (!session) return null
 
   if (expandedJournalId) {
-    const entry = JOURNAL_ENTRIES.find(e => e.id === expandedJournalId)
+    const entry = JOURNAL_ENTRIES.find((e) => e.id === expandedJournalId)
     if (entry) {
-      return (
-        <JournalExpandedView
-          entry={entry}
-          onClose={() => setExpandedJournalId(null)}
-        />
-      )
+      return <JournalExpandedView entry={entry} onClose={() => setExpandedJournalId(null)} />
     }
   }
 
@@ -111,19 +107,28 @@ export function ExpandedTerminal({
               </div>
             ) : (
               <div className="p-4">
-                <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-3">Activity Log</p>
+                <p className="text-[11px] text-[#5a7a7a] uppercase tracking-wider mb-3">
+                  Activity Log
+                </p>
                 <div className="space-y-1.5">
-                  {ACTIVITY_LOG.map((entry) => (
+                  {ACTIVITY_LOG.map((entry, index) => (
                     <button
-                      key={entry.sessionId}
-                      onClick={() => onSwitch(entry.sessionId)}
+                      key={entry.sessionId + index}
+                      onClick={() => {
+                        setSelectedActivityIndex(index)
+                        onSwitch(entry.sessionId)
+                      }}
                       className={`flex items-start gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors cursor-pointer hover:bg-[#142020] ${
-                        entry.sessionId === sessionId ? 'bg-[#142020] border border-[#1e2e2e]' : ''
+                        selectedActivityIndex === index
+                          ? 'bg-[#142020] border border-[#1e2e2e]'
+                          : ''
                       }`}
                     >
-                      <span className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
-                        entry.status === 'done' ? 'bg-green-500' : 'bg-green-400 animate-pulse'
-                      }`} />
+                      <span
+                        className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
+                          entry.status === 'done' ? 'bg-green-500' : 'bg-green-400 animate-pulse'
+                        }`}
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-[12px] text-[#d0dede] leading-snug">{entry.event}</p>
                         <p className="text-[10px] text-[#4a6a6a] mt-0.5">{entry.time}</p>
@@ -142,7 +147,7 @@ export function ExpandedTerminal({
 
 function JournalEntry({
   entry,
-  onSelect,
+  onSelect
 }: {
   entry: { id: string; day: number; time: string; title: string; body: string }
   onSelect: () => void
@@ -152,7 +157,10 @@ function JournalEntry({
   return (
     <div className="relative">
       <button
-        onClick={() => { setOpen(!open); if (!open) onSelect() }}
+        onClick={() => {
+          setOpen(!open)
+          if (!open) onSelect()
+        }}
         className="w-full text-left"
       >
         <div className="flex items-center gap-2 mb-1.5">
@@ -168,9 +176,7 @@ function JournalEntry({
         <p className="text-[12px] text-[#d0dede] font-semibold leading-snug mb-1 ml-4">
           {entry.title}
         </p>
-        <p className="text-[10px] text-[#6a8a8a] leading-relaxed ml-4 line-clamp-2">
-          {entry.body}
-        </p>
+        <p className="text-[10px] text-[#6a8a8a] leading-relaxed ml-4 line-clamp-2">{entry.body}</p>
       </button>
     </div>
   )
@@ -178,9 +184,16 @@ function JournalEntry({
 
 function JournalExpandedView({
   entry,
-  onClose,
+  onClose
 }: {
-  entry: { id: string; day: number; time: string; title: string; body: string; expandedThought: string }
+  entry: {
+    id: string
+    day: number
+    time: string
+    title: string
+    body: string
+    expandedThought: string
+  }
   onClose: () => void
 }) {
   const lines = entry.expandedThought.split('\n')
@@ -208,7 +221,9 @@ function JournalExpandedView({
 
       <div className="flex-1 flex flex-col p-6 overflow-hidden">
         <div className="mb-4">
-          <p className="text-[11px] text-[#e0a040] font-mono">// thought process — Day {entry.day} {entry.time}</p>
+          <p className="text-[11px] text-[#e0a040] font-mono">
+            // thought process — Day {entry.day} {entry.time}
+          </p>
           <p className="text-[14px] text-[#d0dede] font-semibold mt-1">{entry.title}</p>
         </div>
 
@@ -220,7 +235,7 @@ function JournalExpandedView({
                 key={i}
                 className="whitespace-pre mb-1"
                 style={{
-                  color: hasCensored ? '#4a6a6a' : line.startsWith('//') ? '#5a7a7a' : '#8aaa9a',
+                  color: hasCensored ? '#4a6a6a' : line.startsWith('//') ? '#5a7a7a' : '#8aaa9a'
                 }}
               >
                 {line}

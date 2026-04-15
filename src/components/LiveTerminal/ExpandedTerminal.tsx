@@ -15,7 +15,6 @@ export function ExpandedTerminal({
   const session = TERMINAL_SESSIONS.find((s) => s.id === sessionId)
   const [activeTab, setActiveTab] = useState<'journal' | 'activity'>('journal')
   const [expandedJournalId, setExpandedJournalId] = useState<string | null>(null)
-  const [selectedActivityIndex, setSelectedActivityIndex] = useState<number | null>(null)
 
   if (!session) return null
 
@@ -114,15 +113,8 @@ export function ExpandedTerminal({
                   {ACTIVITY_LOG.map((entry, index) => (
                     <button
                       key={entry.sessionId + index}
-                      onClick={() => {
-                        setSelectedActivityIndex(index)
-                        onSwitch(entry.sessionId)
-                      }}
-                      className={`flex items-start gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors cursor-pointer hover:bg-[#142020] ${
-                        selectedActivityIndex === index
-                          ? 'bg-[#142020] border border-[#1e2e2e]'
-                          : ''
-                      }`}
+                      onClick={() => onSwitch(entry.sessionId)}
+                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors cursor-pointer hover:bg-[#142020]"
                     >
                       <span
                         className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${

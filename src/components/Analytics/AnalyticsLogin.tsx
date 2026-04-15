@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Shield, Lock, Eye, EyeOff } from 'lucide-react'
+import { Shield, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface AnalyticsLoginProps {
   onLogin: (success: boolean) => void
@@ -10,6 +11,7 @@ export function AnalyticsLogin({ onLogin }: AnalyticsLoginProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const navigate = useNavigate()
 
   // Simple password check - in production, this would be server-side
   const VALID_PASSWORD = 'klZbk@sOsMx!YnpzcIs1WG86I1HNGkK0%TA21taYeAL@PHawZV'
@@ -34,6 +36,15 @@ export function AnalyticsLogin({ onLogin }: AnalyticsLoginProps) {
   return (
     <div className="min-h-screen bg-[#0a1214] text-[#d0dede] [font-family:Inter,ui-sans-serif,system-ui,sans-serif] flex items-center justify-center">
       <div className="w-full max-w-md">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-[12px] text-[#5a7a7a] hover:text-[#8aaa9a] transition-colors cursor-pointer mb-6"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          BACK
+        </button>
+
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#111c1e] border border-[#1e2e2e] mb-4">

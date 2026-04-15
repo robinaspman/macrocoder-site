@@ -37,36 +37,36 @@ export function LiveTerminalDashboard() {
 
   useEffect(() => {
     // Always use demo data when no API configured
-    const demo = TERMINAL_SESSIONS.map(s => ({
+    const demo = TERMINAL_SESSIONS.map((s) => ({
       id: s.id,
       mode: s.mode,
       icon: s.icon,
       status: s.status,
       command: s.command,
       color: s.color,
-      description: s.description,
+      description: s.description
     }))
     setSessions(demo)
     setVisibleIds(demo.map((s: Session) => s.id))
     // Use activity from demo data
-    const activityData = ACTIVITY_LOG.slice(0, 15).map(a => ({
+    const activityData = ACTIVITY_LOG.slice(0, 15).map((a) => ({
       time: a.time,
       event: a.event,
       detail: a.detail,
       status: a.status,
-      sessionId: a.sessionId,
+      sessionId: a.sessionId
     }))
     setActivity(activityData)
   }, [])
 
-  const visibleSessions = sessions.filter(s => visibleIds.includes(s.id))
+  const visibleSessions = sessions.filter((s) => visibleIds.includes(s.id))
 
-  const terminalSessions = visibleSessions.map(s => {
-    const demoSession = TERMINAL_SESSIONS.find(ds => ds.id === s.id)
+  const terminalSessions = visibleSessions.map((s) => {
+    const demoSession = TERMINAL_SESSIONS.find((ds) => ds.id === s.id)
     return {
       ...s,
       status: s.status as 'running' | 'completed' | 'idle',
-      lines: demoSession?.lines || [],
+      lines: demoSession?.lines || []
     }
   })
 
@@ -120,14 +120,21 @@ export function LiveTerminalDashboard() {
             {/* Hero text */}
             <div className="mb-6 flex-shrink-0 max-w-[720px]">
               <h1 className="text-[32px] font-bold leading-tight tracking-tight">
-                <span className="text-[#e0a040]" style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}>MacroCoder.</span>{' '}
+                <span
+                  className="text-[#e0a040]"
+                  style={{ textShadow: '0 0 15px rgba(224, 160, 64, 0.4)' }}
+                >
+                  MacroCoder.
+                </span>{' '}
                 <span className="text-white">Multiple Agents. Real Execution.</span>
               </h1>
               <p className="text-[#8aaa9a] text-[14px] mt-3 font-medium">
-                Private cloud-connected agent orchestration for build, deploy, debugging, migration, security, and optimization.
+                Private cloud-connected agent orchestration for build, deploy, debugging, migration,
+                security, and optimization.
               </p>
               <p className="text-[#3a5050] text-[11px] mt-3 leading-relaxed">
-                A mix of live workflows and controlled demo content. Sensitive data is redacted where required.
+                This website showcases demo content. For privacy reasons, I do not disclose whether
+                any displayed material is connected to client work.
               </p>
             </div>
 
@@ -138,13 +145,17 @@ export function LiveTerminalDashboard() {
             {/* Footer */}
             <div className="flex items-center justify-between mt-6 flex-shrink-0 text-[10px] uppercase tracking-wider text-[#3a5050]">
               <span>&copy; 2026 MACROCODER · Demo Only · No Client Code</span>
-              <span>{visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} ACTIVE</span>
+              <span>
+                {visibleIds.length} SEQUENCE{visibleIds.length !== 1 ? 'S' : ''} ACTIVE
+              </span>
             </div>
           </div>
         </div>
 
         {/* Activity log sidebar */}
-        <div className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0 min-h-0`}>
+        <div
+          className={`${sidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-200 overflow-hidden flex-shrink-0 min-h-0`}
+        >
           <StatsSidebar onExpand={setExpandedId} activity={activity} />
         </div>
 

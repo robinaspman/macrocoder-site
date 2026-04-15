@@ -12,7 +12,7 @@ export function AnalyticsLogin({ onLogin }: AnalyticsLoginProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   // Simple password check - in production, this would be server-side
-  const VALID_PASSWORD = 'macro2026'
+  const VALID_PASSWORD = 'klZbk@sOsMx!YnpzcIs1WG86I1HNGkK0%TA21taYeAL@PHawZV'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

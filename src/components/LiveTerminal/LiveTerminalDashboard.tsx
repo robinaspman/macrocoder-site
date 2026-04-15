@@ -121,9 +121,9 @@ export function LiveTerminalDashboard() {
             <div className="mb-6 flex-shrink-0 max-w-[720px]">
               <h1 className="text-[32px] font-bold leading-tight tracking-tight">
                 <span
-                  className="text-[#d4a020]"
+                  className="text-[#f0c040]"
                   style={{
-                    textShadow: '0 0 20px rgba(212, 160, 32, 0.6), 0 0 40px rgba(212, 160, 32, 0.3)'
+                    textShadow: '0 0 20px rgba(240, 192, 64, 0.6), 0 0 40px rgba(240, 192, 64, 0.3)'
                   }}
                 >
                   MacroCoder.
